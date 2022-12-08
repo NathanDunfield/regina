@@ -156,15 +156,19 @@ MatrixInt makeMatchingEquations(const Triangulation<3>& triangulation,
         case NS_QUAD_CLOSED:
         case NS_AN_QUAD_OCT_CLOSED:
         {
+	    bool all_links_euler_0 = true;
+	    for (Vertex<3>* vertex : triangulation.vertices()){
+		if (vertex->linkEulerChar() != 0){
+		    all_links_euler_0 = false;
+		}
+	    }
             // Enforce our basic preconditions.
-            if (! (triangulation.isOriented() && triangulation.isIdeal() &&
-                    triangulation.countBoundaryComponents() == 1 &&
-                    triangulation.countVertices() == 1 &&
-                    triangulation.vertex(0)->linkType() == Vertex<3>::TORUS))
+            if (! (triangulation.isOriented() && triangulation.isIdeal() && all_links_euler_0 &&
+		   triangulation.countBoundaryComponents() == triangulation.countVertices()))
                 throw InvalidArgument(
                     "NS_QUAD_CLOSED and NS_AN_QUAD_OCT_CLOSED "
                     "require an oriented ideal triangulation with "
-                    "precisely one torus cusp and no other vertices");
+                    "only torus cusps and no other vertices");
 
             // We will use SnapPea to build the additional constraint that
             // enforces closed surfaces.
