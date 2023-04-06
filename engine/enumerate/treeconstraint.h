@@ -566,10 +566,13 @@ class LPConstraintEulerZero : public LPConstraintSubspace {
  * \apinotfinal
  *
  * \ingroup enumerate
+ *
+ * MODIFIED BY NMD TO ALLOWS AT MOST 8 CUSPS
+ *
  */
 class LPConstraintNonSpun : public LPConstraintSubspace {
     public:
-        static constexpr int nConstraints = 2;
+        static constexpr int nConstraints = 16;
         using Coefficient = long;
         static constexpr Coefficient octAdjustment = 0;
 
@@ -1130,8 +1133,9 @@ inline bool LPConstraintEulerZero::supported(NormalEncoding enc) {
 template <typename IntType>
 inline void LPConstraintNonSpun::constrain(
         LPData<regina::LPConstraintNonSpun, IntType>& lp, size_t numCols) {
-    lp.constrainZero(numCols - 2);
-    lp.constrainZero(numCols - 1);
+    for (size_t i=1; i<=16; i++){
+	lp.constrainZero(numCols - i);
+    }
 }
 
 inline bool LPConstraintNonSpun::verify(const NormalSurface& s) {

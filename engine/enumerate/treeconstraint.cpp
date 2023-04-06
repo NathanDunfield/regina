@@ -146,13 +146,22 @@ void LPConstraintNonSpun::addRows(
 
     // For the time being we insist on one vertex, which must be
     // ideal with torus link.
-    if (tri.countVertices() != 1 ||
-            (! tri.vertex(0)->isIdeal()) ||
-            (! tri.vertex(0)->isLinkOrientable()) ||
-            tri.vertex(0)->linkEulerChar() != 0)
-        throw InvalidArgument(
+    size_t num_vert = tri.countVertices();
+
+    if (num_vert > 8)
+	throw InvalidArgument(
             "LPConstraintNonSpun requires an oriented ideal triangulation "
-            "with precisely one torus cusp and no other vertices");
+            "with at most eight torus cusps and no other vertices");
+
+    for (size_t i = 0; i < num_vert; ++i) {
+	if ((! tri.vertex(i)->isIdeal()) ||
+            (! tri.vertex(i)->isLinkOrientable()) ||
+            tri.vertex(i)->linkEulerChar() != 0) {
+	    throw InvalidArgument(
+            "LPConstraintNonSpun requires an oriented ideal triangulation "
+            "with at most eight torus cusps and no other vertices");
+	}
+    }
 
     // Compute the two slope equations for the torus cusp, if we can.
     SnapPeaTriangulation snapPea(tri, false);
@@ -175,11 +184,13 @@ void LPConstraintNonSpun::addRows(
     // back to native integers now.  However, just in case:
     try {
         for (size_t i = 0; i < 3 * tri.size(); ++i) {
-            col[i].extra[0] =
-                coeffs.entry(0, init.columnPerm()[i]).safeLongValue();
-            col[i].extra[1] =
-                coeffs.entry(1, init.columnPerm()[i]).safeLongValue();
-        }
+	    for (size_t v = 0; v < num_vert; ++v) {
+		col[i].extra[2*v] =
+		    coeffs.entry(2*v, init.columnPerm()[i]).safeLongValue();
+		col[i].extra[2*v+1] =
+		    coeffs.entry(2*v+1, init.columnPerm()[i]).safeLongValue();
+	    }
+	}
     } catch (const NoSolution&) {
         throw UnsolvedCase("The coefficients of the slope equations "
             "do not fit into a native long integer");
