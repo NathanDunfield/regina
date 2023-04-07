@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -228,6 +228,8 @@ void addTriangulation2(pybind11::module_& m) {
             &Triangulation<2>::simplifiedFundamentalGroup,
             rbase::simplifiedFundamentalGroup)
         .def("isMinimal", &Triangulation<2>::isMinimal, rdoc::isMinimal)
+        .def("isSphere", &Triangulation<2>::isSphere, rdoc::isSphere)
+        .def("isBall", &Triangulation<2>::isBall, rdoc::isBall)
         .def("orient", &Triangulation<2>::orient, rbase::orient)
         .def("reflect", &Triangulation<2>::reflect, rbase::reflect)
         .def("triangulateComponents", &Triangulation<2>::triangulateComponents,

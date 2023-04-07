@@ -3944,6 +3944,7 @@
 		05721F171F97165000A83FFC /* graph.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = graph.cpp; sourceTree = "<group>"; };
 		05721F181F97165000A83FFC /* testlink.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = testlink.h; sourceTree = "<group>"; };
 		05721F191F97165000A83FFC /* link.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = link.cpp; sourceTree = "<group>"; };
+		0573652229C3F40900EDC0DF /* regina.metainfo.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = regina.metainfo.xml; sourceTree = "<group>"; };
 		05754CC1258B38C100236ED7 /* laurent2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = laurent2.cpp; sourceTree = "<group>"; };
 		05754CD3258B814D00236ED7 /* cyclotomic.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = cyclotomic.cpp; sourceTree = "<group>"; };
 		05754CE5258D7D6400236ED7 /* randutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = randutils.h; sourceTree = "<group>"; };
@@ -7558,6 +7559,7 @@
 				0564A5E31811D920002CC2AE /* regina.plist */,
 				0564A5E41811D920002CC2AE /* regina.rc */,
 				0564A5E51811D920002CC2AE /* regina.xml */,
+				0573652229C3F40900EDC0DF /* regina.metainfo.xml */,
 				0564A5E61811D920002CC2AE /* reginaabout.cpp */,
 				0564A5E71811D920002CC2AE /* reginaabout.h */,
 				0564A5E81811D920002CC2AE /* reginafilter.h */,
@@ -9083,6 +9085,7 @@
 				052DB5C31D9F22D900EDEA68 /* Clean out *.pyc */,
 				057ED8FC2581B49E004F0068 /* Embed Frameworks */,
 				052DB59E1D9E587C00EDEA68 /* Sign Utilities */,
+				05F37DE929C6B2A500A6203B /* Sign Libraries */,
 				05B9295C259C148700A4503B /* Prepare and Sign Python */,
 			);
 			buildRules = (
@@ -9547,6 +9550,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\n\nfor i in closed-hyp-census-full closed-{or,nor}-census-11 cusped-hyp-{or,nor}-census-9 christy-knots-links; do\n  cp -p \"${BUILD_DIR}\"/$i.tdb \"${TARGET_BUILD_DIR}\"/Regina.app\ndone\n";
+		};
+		05F37DE929C6B2A500A6203B /* Sign Libraries */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Sign Libraries";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Our shared libraries need to be signed with entitlements also.\n# These will be stripped out when uploading to the App Store;\n# however, their absence causes Xcode to manage automatic signing incorrectly.\n#\n# For details, see: https://stackoverflow.com/questions/75422505/how-to-prevent-xcode-from-adding-malformed-entitlements-to-my-dylibs/75422519#75422519%29\n#\n# For now we reuse the utilities entitlements file, which is an empty placeholder.\n\nfor i in libregina-engine.dylib python/regina/engine.so; do\n/usr/bin/codesign --force --options runtime --sign 'Apple Development:' --entitlements \"${SRCROOT}\"/utils/bundle/Utils.entitlements --timestamp=none \"${CONFIGURATION_BUILD_DIR}\"/Regina.app/Contents/MacOS/$i\ndone\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -11464,7 +11485,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7.2.0;
+				CURRENT_PROJECT_VERSION = 7.3.0;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -11488,7 +11509,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.2;
+				MARKETING_VERSION = 7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "net.sourceforge.regina.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = Regina;
 				PROVISIONING_PROFILE = "";
@@ -11507,7 +11528,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 7.2.0;
+				CURRENT_PROJECT_VERSION = 7.3.0;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
@@ -11527,7 +11548,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 7.2;
+				MARKETING_VERSION = 7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "net.sourceforge.regina.${PRODUCT_NAME:rfc1034identifier}";
 				PRODUCT_NAME = Regina;
 				PROVISIONING_PROFILE = "";
@@ -12023,7 +12044,7 @@
 				CODE_SIGN_ENTITLEMENTS = qtui/Regina.entitlements;
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = 67JTSH67LZ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -12057,7 +12078,7 @@
 				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				MARKETING_VERSION = 7.2;
+				MARKETING_VERSION = 7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = net.sourceforge.regina.macos.Regina;
 				PRODUCT_NAME = Regina;
 				REGINA_PYTHON_FRAMEWORK = Python3;
@@ -12074,7 +12095,7 @@
 				CODE_SIGN_ENTITLEMENTS = qtui/Regina.entitlements;
 				CODE_SIGN_IDENTITY = "Mac Developer";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 14;
 				DEVELOPMENT_TEAM = 67JTSH67LZ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -12106,7 +12127,7 @@
 				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
-				MARKETING_VERSION = 7.2;
+				MARKETING_VERSION = 7.3;
 				PRODUCT_BUNDLE_IDENTIFIER = net.sourceforge.regina.macos.Regina;
 				PRODUCT_NAME = Regina;
 				REGINA_PYTHON_FRAMEWORK = Python3;

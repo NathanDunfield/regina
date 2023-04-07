@@ -32,12 +32,16 @@ namespace Triangulation_ {
 static const char *__copy =
 R"doc(Creates a new copy of the given triangulation.
 
-This will clone any computed properties (such as homology, fundamental
-group, and so on) of the given triangulation also. If you want a
-"clean" copy that resets all properties to unknown, you can use the
-two-argument copy constructor instead.
+This will also clone any computed properties (such as homology,
+fundamental group, and so on), as well as the skeleton (vertices,
+edges, components, etc.). In particular, the same numbering and
+labelling will be used for all skeletal objects.
 
-Parameter ``copy``:
+If you want a "clean" copy that resets all properties to unknown and
+leaves the skeleton uncomputed, you can use the two-argument copy
+constructor instead.
+
+Parameter ``src``:
     the triangulation to copy.)doc";
 
 // Docstring regina::python::doc::Triangulation_::__default
@@ -51,14 +55,27 @@ static const char *__init =
 R"doc(Creates a new copy of the given triangulation, with the option of
 whether or not to clone its computed properties also.
 
-Parameter ``copy``:
+If *cloneProps* is ``True``, then this constructor will also clone any
+computed properties (such as homology, fundamental group, and so on),
+as well as the skeleton (vertices, edges, components, etc.). In
+particular, the same numbering and labelling will be used for all
+skeletal objects in both triangulations.
+
+If *cloneProps* is ``False``, then these properties and skeletal
+objects will be marked as unknown in the new triangulation, and will
+be recomputed on demand if/when they are required. Note in particular
+that, when the skeleton is recomputed, there is no guarantee that the
+numbering and labelling for skeletal objects will be the same as in
+the source triangulation.
+
+Parameter ``src``:
     the triangulation to copy.
 
 Parameter ``cloneProps``:
-    ``True`` if this should also clone any computed properties of the
-    given triangulation (such as homology, fundamental group, and so
-    on), or ``False`` if the new triangulation should have all
-    properties marked as unknown.)doc";
+    ``True`` if this should also clone any computed properties as well
+    as the skeleton of the given triangulation, or ``False`` if the
+    new triangulation should have such properties and skeletal data
+    marked as unknown.)doc";
 
 // Docstring regina::python::doc::Triangulation_::__init_2
 static const char *__init_2 =
@@ -100,6 +117,16 @@ static const char *hasBoundaryEdges =
 R"doc(A dimension-specific alias for hasBoundaryFacets().
 
 See hasBoundaryFacets() for further information.)doc";
+
+// Docstring regina::python::doc::Triangulation_::isBall
+static const char *isBall =
+R"doc(Determines whether this is a triangulation of a 2-ball.
+
+Unlike the 3-dimensional version of this routine, isBall() for
+2-manifolds is fast and simple.
+
+Returns:
+    ``True`` if and only if this is a 2-ball triangulation.)doc";
 
 // Docstring regina::python::doc::Triangulation_::isClosed
 static const char *isClosed =
@@ -146,6 +173,16 @@ underlying manifold.
 
 Returns:
     ``True`` if and only if this is a minimal triangulation.)doc";
+
+// Docstring regina::python::doc::Triangulation_::isSphere
+static const char *isSphere =
+R"doc(Determines whether this is a triangulation of a 2-sphere.
+
+Unlike the 3-dimensional version of this routine, isSphere() for
+2-manifolds is fast and simple.
+
+Returns:
+    ``True`` if and only if this is a 2-sphere triangulation.)doc";
 
 // Docstring regina::python::doc::Triangulation_::newTriangle
 static const char *newTriangle =

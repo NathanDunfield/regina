@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -64,6 +64,7 @@ template MatrixInt TriangulationBase<3>::dualToPrimal<2>() const;
 template const GroupPresentation& TriangulationBase<3>::group() const;
 
 template void TriangulationBase<3>::calculateSkeleton();
+template void TriangulationBase<3>::cloneSkeleton(const TriangulationBase<3>&);
 template void TriangulationBase<3>::clearBaseProperties();
 template void TriangulationBase<3>::swapBaseData(TriangulationBase<3>&);
 

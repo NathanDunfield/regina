@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -505,8 +505,28 @@ class Perm {
          * If you do try to call precompute() a second time then it will
          * do nothing and return immediately.
          *
-         * TODO: Add details on how much memory the precomputed tables
-         * will consume.
+         * The precomputed tables will consume roughly:
+         *
+         * - 33 kB for \a n = 8;
+         * - 8.9 MB for \a n = 9;
+         * - 17 MB for \a n = 10;
+         * - 143 MB for \a n = 11;
+         * - 268 MB for \a n = 12;
+         * - 2.3 GB for \a n = 13;
+         * - 4.3 GB for \a n = 14;
+         * - 37 GB for \a n = 15;
+         * - 69 GB for \a n = 16.
+         *
+         * In particular, a 32-bit machine will not be able to store these
+         * tables for \a n ≥ 13, a 24-bit machine will not be these tables for
+         * \a n ≥ 9, and a 16-bit machine will not be able to store these
+         * tables for any \a n ≥ 8.
+         *
+         * \pre There is enough memory available to store the precomputed
+         * tables; see above for the estimated space requirements.
+         *
+         * \exception FailedPrecondition There was not enough memory to
+         * available to store the precomputed tables.
          *
          * This routine is thread-safe.
          */
@@ -541,10 +561,8 @@ class Perm {
         /**
          * Creates a permutation that is a clone of the given
          * permutation.
-         *
-         * \param cloneMe the permutation to clone.
          */
-        constexpr Perm(const Perm<n>& cloneMe) = default;
+        constexpr Perm(const Perm&) = default;
 
         /**
          * Returns the internal code representing this permutation.
@@ -683,7 +701,7 @@ class Perm {
          * \param q the permutation to compose this with.
          * \return the composition of both permutations.
          */
-        constexpr Perm cachedComp(const Perm& q) const;
+        Perm cachedComp(const Perm& q) const;
 
         /**
          * Deprecated alias for using the composition operator twice, provided
@@ -707,8 +725,7 @@ class Perm {
          * \param r the second permutation to compose this with.
          * \return the composition of both permutations.
          */
-        [[deprecated]] constexpr Perm cachedComp(const Perm& q, const Perm& r)
-            const;
+        [[deprecated]] Perm cachedComp(const Perm& q, const Perm& r) const;
 
         /**
          * Computes the conjugate of this permutation by \a q.
@@ -748,7 +765,7 @@ class Perm {
          * \param q the permutation to conjugate this by.
          * \return the conjugate of this permutation by \a q.
          */
-        constexpr Perm cachedConjugate(const Perm& q) const;
+        Perm cachedConjugate(const Perm& q) const;
 
         /**
          * Finds the inverse of this permutation.
@@ -795,7 +812,7 @@ class Perm {
          *
          * \return the inverse of this permutation.
          */
-        constexpr Perm cachedInverse() const;
+        Perm cachedInverse() const;
 
         /**
          * Computes the given power of this permutation.
@@ -832,7 +849,7 @@ class Perm {
          * \param exp the exponent; this may be positive, zero or negative.
          * \return this permutation raised to the power of \a exp.
          */
-        constexpr Perm<n> cachedPow(long exp) const;
+        Perm cachedPow(long exp) const;
 
         /**
          * Returns the order of this permutation.
@@ -871,7 +888,7 @@ class Perm {
          *
          * \return the order of this permutation.
          */
-        constexpr int cachedOrder() const;
+        int cachedOrder() const;
 
         /**
          * Finds the reverse of this permutation.
@@ -1473,6 +1490,38 @@ class PermClass {
         bool isIdentity() const;
 
         /**
+         * Returns the length of the given cycle in this conjugacy class.
+         *
+         * Recall from the class notes that a conjugacy class identifies
+         * the cycle structure of a permutation.  If the cycle lengths
+         * are listed in order from shortest to longest, then this
+         * routine returns the <i>which</i>th cycle length in this sequence.
+         * Fixed points are included in this sequence (they are considered
+         * to be cycles of length 1, and will appear at the beginning of
+         * the sequence).
+         *
+         * For example, for a conjugacy class in `PermClass<9>` with
+         * cycle lengths `(1,1,3,4)`, calling `cycle(2)` will return 3.
+         *
+         * \param which indicates which cycle length to return; this
+         * must be between 0 and countCycles()-1 inclusive.
+         * \return the requested cycle length.
+         */
+        int cycle(int which) const;
+
+        /**
+         * Returns the number of cycles in this conjugacy class.
+         *
+         * Recall from the class notes that a conjugacy class identifies
+         * the cycle structure of a permutation.  This routine simply
+         * returns the number of cycles for this conjugacy class.  Fixed points
+         * are also counted (they are considered to be cycles of length 1).
+         *
+         * \return the number of cycles.
+         */
+        int countCycles() const;
+
+        /**
          * Returns the minimal representative of this conjugacy class.
          *
          * The _minimal representative_ is the permutation belonging to this
@@ -1559,41 +1608,6 @@ class PermClass {
          * or \c true otherwise.
          */
         operator bool() const;
-
-        /**
-         * Returns the set of all permutations that fix the minimal
-         * representative of this conjugacy class under conjugation.
-         *
-         * Specifically, if \a r is the minimal representative of this class
-         * as returned by rep(), then this routine constructs the subgroup of
-         * all permutations \a p for which `p.inverse() * r * p == r`.
-         *
-         * The permutations will be returned in an arbitrary order
-         * (and in particular, this order may be subject to change in
-         * future releases of Regina).
-         *
-         * \warning This group could get \e very large.  If this conjugacy
-         * class represents the identity permutation, then the centraliser
-         * will be all of S_n.  For \a n ≥ 5, it can be show that the
-         * next-worst case is where this conjugacy class represents a single
-         * pair swap, in which case the centraliser has size `2⋅(n-2)!`.
-         *
-         * \pre This is not the past-the-end conjugacy class.
-         *
-         * \pre Arrays on this system can be large enough to store n! objects.
-         * This is a technical condition on the bit-size of \c size_t that will
-         * be explicitly checked (with an exception thrown if it fails).
-         * On a 64-bit system this condition should be true for all supported
-         * \a n (that is, \a n ≤ 16), but on a 32-bit or 16-bit system it will
-         * mean that centraliser() cannot be used for larger values of \a n.
-         *
-         * \exception FailedPrecondition A signed integer of the same bit-size
-         * as \c size_t cannot hold (n!).  See the precondition above for
-         * further discussion on this constraint.
-         *
-         * \return all permutations that leave rep() fixed under conjugation.
-         */
-        std::vector<Perm<n>> centraliser() const;
 };
 
 /**
@@ -1602,7 +1616,7 @@ class PermClass {
  * PermClass<n>::str().
  *
  * \param out the output stream to which to write.
- * \param p the conjugacy class to write.
+ * \param c the conjugacy class to write.
  * \return a reference to \a out.
  *
  * \tparam n the number of objects being permuted.  This must be between
@@ -1795,7 +1809,7 @@ inline constexpr Perm<n> Perm<n>::operator * (const Perm& q) const {
 }
 
 template <int n>
-inline constexpr Perm<n> Perm<n>::cachedComp(const Perm& q) const {
+inline Perm<n> Perm<n>::cachedComp(const Perm& q) const {
     Code c = 0;
     int bits = 0;
     for (int i = 0; i < n; ++i, bits += imageBits)
@@ -1805,8 +1819,7 @@ inline constexpr Perm<n> Perm<n>::cachedComp(const Perm& q) const {
 }
 
 template <int n>
-inline constexpr Perm<n> Perm<n>::cachedComp(const Perm& q, const Perm& r)
-        const {
+inline Perm<n> Perm<n>::cachedComp(const Perm& q, const Perm& r) const {
     Code c = 0;
     int bits = 0;
     for (int i = 0; i < n; ++i, bits += imageBits)
@@ -1827,7 +1840,7 @@ inline constexpr Perm<n> Perm<n>::conjugate(const Perm<n>& q) const {
 }
 
 template <int n>
-inline constexpr Perm<n> Perm<n>::cachedConjugate(const Perm<n>& q) const {
+inline Perm<n> Perm<n>::cachedConjugate(const Perm<n>& q) const {
     Code c = 0;
     for (int bits = 0; bits < imageBits * n; bits += imageBits) {
         // q[i] -> q[this[i]]
@@ -1846,7 +1859,7 @@ inline constexpr Perm<n> Perm<n>::inverse() const {
 }
 
 template <int n>
-inline constexpr Perm<n> Perm<n>::cachedInverse() const {
+inline Perm<n> Perm<n>::cachedInverse() const {
     return invLower_[code_ & lowerMask] |
         invUpper_[(code_ & upperMask) >> upperShift];
 }
@@ -1899,7 +1912,7 @@ constexpr Perm<n> Perm<n>::pow(long exp) const {
 }
 
 template <int n>
-inline constexpr Perm<n> Perm<n>::cachedPow(long exp) const {
+inline Perm<n> Perm<n>::cachedPow(long exp) const {
     return pow(exp);
 }
 
@@ -1933,7 +1946,7 @@ constexpr int Perm<n>::order() const {
 }
 
 template <int n>
-inline constexpr int Perm<n>::cachedOrder() const {
+inline int Perm<n>::cachedOrder() const {
     return order();
 }
 
@@ -2184,6 +2197,9 @@ std::string Perm<n>::trunc(int len) const {
     return ans;
 }
 
+// Doxygen gets confused with templated static member functions, and
+// thinks these are new non-static functions instead.
+#ifndef __DOXYGEN
 template <int n>
 template <int k>
 constexpr Perm<n> Perm<n>::extend(Perm<k> p) {
@@ -2225,6 +2241,7 @@ constexpr Perm<n> Perm<n>::contract(Perm<k> p) {
 
     return Perm<n>(c);
 }
+#endif // __DOXYGEN
 
 template <int n>
 inline void Perm<n>::clear(unsigned from) {
@@ -2261,6 +2278,9 @@ std::string Perm<n>::tightEncoding() const {
     return ans;
 }
 
+// Doxygen gets confused with templated static member functions, and
+// thinks this is a new non-static function instead.
+#ifndef __DOXYGEN
 template <int n>
 template <typename iterator>
 Perm<n> Perm<n>::tightDecode(iterator start, iterator limit,
@@ -2297,6 +2317,7 @@ Perm<n> Perm<n>::tightDecode(iterator start, iterator limit,
 
     return Sn[idx];
 }
+#endif
 
 template <int n>
 inline Perm<n> Perm<n>::tightDecode(std::istream& input) {
@@ -2430,6 +2451,16 @@ inline bool PermClass<n>::isIdentity() const {
 }
 
 template <int n>
+inline int PermClass<n>::cycle(int which) const {
+    return cycle_[which];
+}
+
+template <int n>
+inline int PermClass<n>::countCycles() const {
+    return nCycles_;
+}
+
+template <int n>
 inline PermClass<n>::operator bool() const {
     return nCycles_;
 }
@@ -2503,6 +2534,23 @@ inline PermClass<n> PermClass<n>::operator ++(int) {
 #include "maths/spec/perm4.h"
 #include "maths/spec/perm5.h"
 #include "maths/spec/perm7.h"
+
+// Explicitly declare the non-specialised classes as extern.  Otherwise the
+// linker on Windows (and *only* Windows) fails to unify their static data
+// members between the DLL and the executable (even though they are correctly
+// listed in the DLL export list, and even though Linux and macOS seem to
+// manage this just fine).  This then causes a crash, since the precomputed
+// tables are being written to and read from using different memory addresses.
+//
+extern template class regina::Perm<8>;
+extern template class regina::Perm<9>;
+extern template class regina::Perm<10>;
+extern template class regina::Perm<11>;
+extern template class regina::Perm<12>;
+extern template class regina::Perm<13>;
+extern template class regina::Perm<14>;
+extern template class regina::Perm<15>;
+extern template class regina::Perm<16>;
 
 namespace regina {
 
