@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -198,12 +198,12 @@ class TriangulationBase :
                 >::subdimension;
         }
 
+    protected:
         MarkedVector<Component<dim>> components_;
             /**< The connected components that form the triangulation.
                  This list is only filled if/when the skeleton of the
                  triangulation is computed. */
 
-    protected:
         MarkedVector<BoundaryComponent<dim>> boundaryComponents_;
             /**< The components that form the boundary of the triangulation. */
 
@@ -256,25 +256,50 @@ class TriangulationBase :
         /**
          * Creates a new copy of the given triangulation.
          *
-         * This will clone any computed properties (such as homology,
-         * fundamental group, and so on) of the given triangulation also.
-         * If you want a "clean" copy that resets all properties to unknown,
-         * you can use the two-argument copy constructor instead.
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, the same numbering and
+         * labelling will be used for all skeletal objects.
          *
-         * \param copy the triangulation to copy.
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
+         * If you want a "clean" copy that resets all properties to unknown
+         * and leaves the skeleton uncomputed, you can use the two-argument
+         * copy constructor instead.
+         *
+         * \param src the triangulation to copy.
          */
-        TriangulationBase(const TriangulationBase<dim>& copy);
+        TriangulationBase(const TriangulationBase<dim>& src);
         /**
          * Creates a new copy of the given triangulation, with the option
          * of whether or not to clone its computed properties also.
          *
-         * \param copy the triangulation to copy.
+         * If \a cloneProps is \c true, then this constructor will also clone
+         * any computed properties (such as homology, fundamental group, and
+         * so on), as well as the skeleton (vertices, edges, components, etc.).
+         * In particular, the same numbering and labelling will be used for
+         * all skeletal objects in both triangulations.
+         *
+         * If \a cloneProps is \c false, then these properties and skeletal
+         * objects will be marked as unknown in the new triangulation, and
+         * will be recomputed on demand if/when they are required.  Note
+         * in particular that, when the skeleton is recomputed, there is
+         * no guarantee that the numbering and labelling for skeletal objects
+         * will be the same as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will be copied across _only_ if \a cloneProps
+         * is \c true.  If \a cloneProps is \c false then the new triangulation
+         * will have no locks at all.
+         *
+         * \param src the triangulation to copy.
          * \param cloneProps \c true if this should also clone any computed
-         * properties of the given triangulation (such as homology,
-         * fundamental group, and so on), or \c false if the new triangulation
-         * should have all properties marked as unknown.
+         * properties as well as the skeleton of the given triangulation,
+         * or \c false if the new triangulation should have such properties
+         * and skeletal data marked as unknown.
          */
-        TriangulationBase(const TriangulationBase<dim>& copy, bool cloneProps);
+        TriangulationBase(const TriangulationBase<dim>& src, bool cloneProps);
         /**
          * Moves the given triangulation into this new triangulation.
          *
@@ -288,6 +313,9 @@ class TriangulationBase :
          * Simplex<dim>, Face<dim, subdim>, Component<dim> or
          * BoundaryComponent<dim> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
          *
          * The triangulation that is passed (\a src) will no longer be usable.
          *
@@ -473,6 +501,11 @@ class TriangulationBase :
          * \pre The given simplex is a top-dimensional simplex in this
          * triangulation.
          *
+         * \exception LockViolation The given simplex and/or one of its
+         * facets is currently locked.  See Simplex<dim>::lock() and
+         * Simplex<dim>::lockFacet() for further details on how such locks
+         * work and what their implications are.
+         *
          * \param simplex the simplex to remove.
          */
         void removeSimplex(Simplex<dim>* simplex);
@@ -485,7 +518,12 @@ class TriangulationBase :
          * The given simplex will be unglued from any adjacent simplices
          * (if any), and will be destroyed immediately.
          *
-         * \param index specifies which top-dimensionalsimplex to remove; this
+         * \exception LockViolation The requested simplex and/or one of its
+         * facets is currently locked.  See Simplex<dim>::lock() and
+         * Simplex<dim>::lockFacet() for further details on how such locks
+         * work and what their implications are.
+         *
+         * \param index specifies which top-dimensional simplex to remove; this
          * must be between 0 and size()-1 inclusive.
          */
         void removeSimplexAt(size_t index);
@@ -495,6 +533,11 @@ class TriangulationBase :
          *
          * All of the simplices that belong to this triangulation will
          * be destroyed immediately.
+         *
+         * \exception LockViolation This triangulation contains at least one
+         * locked top-dimensional simplex and/or facet.  See
+         * Simplex<dim>::lock() and Simplex<dim>::lockFacet() for further
+         * details on how such locks work and what their implications are.
          */
         void removeAllSimplices();
         /**
@@ -509,7 +552,9 @@ class TriangulationBase :
          *
          * This triangulation will become empty as a result.
          *
-         * Any pointers or references to Simplex<dim> objects will remain valid.
+         * Any pointers or references to Simplex<dim> objects will remain
+         * valid, and any locks on top-dimensional simplices and/or their
+         * facets will be preserved.
          *
          * If your intention is to _replace_ the simplices in \a dest
          * (i.e., you do not need to preserve the original contents),
@@ -522,6 +567,47 @@ class TriangulationBase :
          * \param dest the triangulation into which simplices should be moved.
          */
         void moveContentsTo(Triangulation<dim>& dest);
+
+        /**
+         * Identifies whether any top-dimensional simplices and/or any of
+         * their facets are locked.
+         *
+         * In short, locking a top-dimensional simplex and/or some of its
+         * facets means that that the simplex and/or facets must not be
+         * changed.  See Simplex<dim>::lock() and Simplex<dim>::lockFacet()
+         * for full details on how locks work and what their implications are.
+         *
+         * \return \c true if and only if there is at least one locked
+         * top-dimensional simplex or at least one locked facet of a
+         * top-dimensional simplex within this triangulation.
+         */
+        bool hasLocks() const;
+        /**
+         * Locks all boundary facets of this triangulation.
+         *
+         * In short, this means that the boundary facets must not be changed.
+         * See Simplex<dim>::lockFacet() for full details on how locks work
+         * and what their implications are.
+         *
+         * If there are any other locks on top-dimensional simplices and/or
+         * their facets, these other locks will be left intact.
+         *
+         * Note that this only locks the facets of real boundary components.
+         * Ideal boundary components are not affected (since they have no
+         * facets to lock).
+         */
+        void lockBoundary();
+        /**
+         * Unlocks all top-dimensional simplices and their facets.
+         *
+         * In short, locking a top-dimensional simplex and/or some of its
+         * facets means that that the simplex and/or facets must not be
+         * changed.  See Simplex<dim>::lock() and Simplex<dim>::lockFacet()
+         * for full details on how locks work and what their implications are.
+         *
+         * After this is routine called, hasLocks() will return \c false.
+         */
+        void unlockAll();
 
         /*@}*/
         /**
@@ -1811,16 +1897,21 @@ class TriangulationBase :
          * if possible.
          *
          * This routine works by flipping vertices (\a dim - 1) and \a dim
-         * of each top-dimensional simplices that has negative orientation.
+         * of each top-dimensional simplex that has negative orientation.
          * The result will be a triangulation where the top-dimensional
          * simplices have their vertices labelled in a way that preserves
          * orientation across adjacent facets.
          * In particular, every gluing permutation will have negative sign.
          *
-         * If this triangulation includes both orientable and
-         * non-orientable components, the orientable components will be
-         * oriented as described above and the non-orientable
-         * components will be left untouched.
+         * If this triangulation includes both orientable and non-orientable
+         * components, the orientable components will be oriented as described
+         * above and the non-orientable components will be left untouched.
+         *
+         * If this triangulation has locks on any top-dimensional simplices
+         * and/or their facets, these will not prevent the orientation from
+         * taking place.  Instead, any locks will be transformed accordingly
+         * (i.e., facets (\a dim - 1) and \a dim will exchange their lock
+         * states for those simplices that originally had negative orientation).
          */
         void orient();
 
@@ -1833,6 +1924,12 @@ class TriangulationBase :
          *
          * This routine works by flipping vertices (\a dim - 1) and \a dim
          * of every top-dimensional simplex.
+         *
+         * If this triangulation has locks on any top-dimensional simplices
+         * and/or their facets, these will not prevent the reflection from
+         * taking place.  Instead, any locks will be transformed accordingly
+         * (i.e., facets (\a dim - 1) and \a dim will exchange their lock
+         * states in every top-dimensional simplex).
          */
         void reflect();
 
@@ -1908,9 +2005,16 @@ class TriangulationBase :
 
         /**
          * Converts this triangulation into its double cover.
+         *
          * Each orientable component will be duplicated, and each
-         * non-orientable component will be converted into its
-         * orientable double cover.
+         * non-orientable component will be converted into its orientable
+         * double cover.
+         *
+         * If this triangulation has locks on any top-dimensional simplices
+         * and/or their facets, these will not prevent the double cover from
+         * taking place.  Instead, these locks will be duplicated alongside
+         * their corresponding simplices and/or facets (i.e., they will appear
+         * in both sheets of the double cover).
          */
         void makeDoubleCover();
 
@@ -1963,6 +2067,11 @@ class TriangulationBase :
          * Regina 5.1.  (Earlier versions of Regina made no guarantee about the
          * labelling and ordering; these guarantees are also new to Regina 5.1).
          *
+         * \exception LockViolation This triangulation contains at least one
+         * locked top-dimensional simplex and/or facet.  See
+         * Simplex<dim>::lock() and Simplex<dim>::lockFacet() for further
+         * details on how such locks work and what their implications are.
+         *
          * \todo Lock the topological properties of the underlying manifold,
          * to avoid recomputing them after the subdivision.  However, only
          * do this for _valid_ triangulations (since we can have scenarios
@@ -1981,6 +2090,11 @@ class TriangulationBase :
          * will be modified directly.
          *
          * \pre \a dim is one of Regina's standard dimensions.
+         *
+         * \exception LockViolation This triangulation contains at least one
+         * locked top-dimensional simplex and/or facet.  See
+         * Simplex<dim>::lock() and Simplex<dim>::lockFacet() for further
+         * details on how such locks work and what their implications are.
          */
         [[deprecated]] void barycentricSubdivision();
 
@@ -2011,6 +2125,10 @@ class TriangulationBase :
          * \warning If a real boundary component contains vertices whose
          * links are not discs, this operation may have unexpected results.
          *
+         * \exception LockViolation This triangulation contains at least one
+         * locked boundary facet.  See Simplex<dim>::lockFacet() for further
+         * details on how such locks work and what their implications are.
+         *
          * \return \c true if changes were made, or \c false if the
          * original triangulation contained no real boundary components.
          */
@@ -2034,6 +2152,10 @@ class TriangulationBase :
          *   the packet tree.
          *
          * - This function does not assign labels to the new components.
+         *
+         * If this triangulation has locks on any top-dimensional simplices
+         * and/or their facets, these locks will also be copied over to the
+         * newly-triangulated components.
          *
          * \return a list of individual component triangulations.
          */
@@ -2059,8 +2181,9 @@ class TriangulationBase :
          * which allows relabelling of the top-dimensional simplices and their
          * vertices, see isIsomorphicTo() instead.
          *
-         * This test does _not_ examine the textual simplex descriptions,
-         * as seen in Simplex<dim>::description(); these may still differ.
+         * This test does _not_ examine the textual simplex descriptions or
+         * simplex/facet locks, as seen in Simplex<dim>::description() and
+         * Simplex<dim>::lockMask(); these may still differ.
          * It also does not test whether lower-dimensional faces are
          * numbered identically (vertices, edges and so on); this routine
          * is only concerned with top-dimensional simplices.
@@ -2094,8 +2217,9 @@ class TriangulationBase :
          * which allows relabelling of the top-dimensional simplices and their
          * vertices, see isIsomorphicTo() instead.
          *
-         * This test does _not_ examine the textual simplex descriptions,
-         * as seen in Simplex<dim>::description(); these may still differ.
+         * This test does _not_ examine the textual simplex descriptions or
+         * simplex/facet locks, as seen in Simplex<dim>::description() and
+         * Simplex<dim>::lockMask(); these may still differ.
          * It also does not test whether lower-dimensional faces are
          * numbered identically (vertices, edges and so on); this routine
          * is only concerned with top-dimensional simplices.
@@ -2351,6 +2475,9 @@ class TriangulationBase :
          * as the original simplices from \a source, and any gluings
          * between the simplices of \a source will likewise be copied
          * across as gluings between their copies in this triangulation.
+         *
+         * If \a source has locks on any top-dimensional simplices and/or their
+         * facets, these locks will also be copied over to this triangulation.
          *
          * This routine behaves correctly when \a source is this triangulation.
          *
@@ -2833,6 +2960,15 @@ class TriangulationBase :
         /**
          * Sets this to be a (deep) copy of the given triangulation.
          *
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, this triangulation
+         * will use the same numbering and labelling for all skeletal objects
+         * as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
          * TriangulationBase never calls this operator itself; it is only
          * ever called by the Triangulation<dim> assignment operator.
          *
@@ -2856,6 +2992,9 @@ class TriangulationBase :
          * BoundaryComponent<dim> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
          *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
+         *
          * TriangulationBase never calls this operator itself; it is only
          * ever called by the Triangulation<dim> assignment operator.
          *
@@ -2877,6 +3016,66 @@ class TriangulationBase :
          * \return a reference to this triangulation.
          */
         TriangulationBase& operator = (TriangulationBase&& src);
+
+        /**
+         * A variant of newSimplex() with no management of the underlying
+         * triangulation.
+         *
+         * This routine adjusts the internal list of simplices, just like
+         * newSimplex() does.  However, this is _all_ it does.  In particular:
+         *
+         * - it does not manage the underlying triangulation in any way:
+         *   it does not take snapshots, fire change events, or clear
+         *   computed properties.
+         *
+         * This should _only_ be used in settings where the other missing tasks
+         * such as snapshots, change events and computed properties are
+         * being taken care of in some other manner (possibly manually).  An
+         * example of such a setting might be the implementation of a local
+         * move (such as a Pachner move).
+         *
+         * Such a "raw" routine would typically be safe to use _without_
+         * any manual error/lock/triangulation management in the following
+         * scenarios:
+         *
+         * - triangulation constructors, but only in settings where no
+         *   properties (including the skeleton) have been computed yet
+         *   (as an example, see the constructor that builds a link complement);
+         *
+         * - routines that create a "staging" triangulation, without computing
+         *   its skeleton or any other properties, and then swap or move this
+         *   staging triangulation into the triangulation actually being
+         *   worked upon (see subdivide() for an example).
+         *
+         * The return value for this routine is the same as for newSimplex().
+         * See newSimplex() for further details.
+         */
+        Simplex<dim>* newSimplexRaw();
+
+        /**
+         * A variant of newSimplices() with no lock management, and no
+         * management of the underlying triangulation.
+         *
+         * See newSimplexRaw() for further details on what these "raw" routines
+         * do and where they can be used.
+         *
+         * The return value for this routine is the same as for newSimplices().
+         * See newSimplices() for further details.
+         */
+        template <int k>
+        std::array<Simplex<dim>*, k> newSimplicesRaw();
+
+        /**
+         * A variant of removeSimplex() with no lock management, and no
+         * management of the underlying triangulation.
+         *
+         * See newSimplexRaw() for further details on what these "raw" routines
+         * do and where they can be used.
+         *
+         * The arguments for this routine are the same as for removeSimplex().
+         * See removeSimplex() for further details.
+         */
+        void removeSimplexRaw(Simplex<dim>* simplex);
 
         /**
          * Ensures that all "on demand" skeletal objects have been calculated.
@@ -2906,15 +3105,70 @@ class TriangulationBase :
          * You should never call this function directly; instead call
          * ensureSkeleton() instead.
          *
+         * For developers: any data members that are computed and stored by
+         * calculateSkeleton() would typically also need to be cloned by
+         * cloneSkeleton().  Therefore any changes or extensions to
+         * calculateSkeleton() would typically need to come with analogous
+         * changes or extensions to cloneSkeleton() also.
+         *
          * \pre No skeletal objects have been computed, and the
          * corresponding internal lists are all empty.
          *
          * \warning Any call to calculateSkeleton() must first cast down to
-         * Triangulation<dim>.  You should never directly call this
+         * Triangulation<dim>, to ensure that you are catching the subclass
+         * implementation if this exists.  You should never directly call this
          * parent implementation (unless of course you are reimplementing
          * calculateSkeleton() in a Triangulation<dim> subclass).
          */
         void calculateSkeleton();
+
+        /**
+         * Builds the skeleton of this triangulation as a clone of the skeleton
+         * of the given triangulation.  This clones all skeletal objects (e.g.,
+         * faces, components and boundary components) and skeletal properties
+         * (e.g., validity and orientability).  In general, this function
+         * clones the same properties and data that calculateSkeleton()
+         * computes.
+         *
+         * For this parent class, cloneSkeleton() clones properties and data
+         * that are common to all dimensions.  Some Triangulation<dim>
+         * subclasses may track additional skeletal properties or data,
+         * in which case they should reimplement this function (just as they
+         * also reimplement calculateSkeleton()).  Their reimplementations
+         * _must_ call this parent implementation.
+         *
+         * This function is intended only for use by the copy constructor
+         * (and related "copy-like" constructors), and the copy assignment
+         * operator.  Other code should typically _not_ need to call this
+         * function directly.
+         *
+         * The real point of this routine is to ensure that, when a
+         * triangulation is cloned, its skeleton is cloned with exactly
+         * the same numbering/labelling of its skeletal objects.  To this end,
+         * it is fine to leave some "large" skeletal properties to be computed
+         * on demand where this is allowed (e.g., triangulated vertex links
+         * or triangulated boundary components, which are allowed to remain
+         * uncomputed until required, even when the full skeleton _has_
+         * been computed).
+         *
+         * \pre No skeletal objects have been computed for this triangulation,
+         * and the corresponding internal lists are all empty.
+         * \pre The skeleton has been fully computed for the given source
+         * triangulation.
+         * \pre The given source triangulation is combinatorially identical
+         * to this triangulation (i.e., both triangulations have the same
+         * number of top-dimensional simplices, with gluings between the same
+         * pairs of numbered simplices using the same gluing permutations).
+         *
+         * \warning Any call to cloneSkeleton() must first cast down to
+         * Triangulation<dim>, to ensure that you are catching the subclass
+         * implementation if this exists.  You should never directly call this
+         * parent implementation (unless of course you are reimplementing
+         * cloneSkeleton() in a Triangulation<dim> subclass).
+         *
+         * \param src the triangulation whose skeleton should be cloned.
+         */
+        void cloneSkeleton(const TriangulationBase& src);
 
         /**
          * Clears all properties that are managed by this base class.
@@ -3002,6 +3256,59 @@ class TriangulationBase :
         template <int subdim>
         void calculateBoundaryFaces(BoundaryComponent<dim>* bc,
             Face<dim, dim-1>* facet);
+
+        /**
+         * Internal to cloneSkeleton().
+         *
+         * This routine takes a face of the source triangulation, and
+         * returns the corresponding face of this triangulation.
+         *
+         * \pre The <i>subdim</i>-faces of the source triangulation have
+         * already been "partially" cloned, in that all corresponding
+         * <i>subdim</i>-face objects should have been constructed and
+         * inserted into the corresponding face lists for _this_ triangulation
+         * in the correct order.  It does not matter if the internal data for
+         * these cloned facial objects is not yet completely filled.
+         */
+        template <int subdim>
+        Face<dim, subdim>* clonedFace(const Face<dim, subdim>* src) const;
+
+        /**
+         * Internal to cloneSkeleton().
+         *
+         * This routine clones the list of all <i>k</i>-faces of the source
+         * triangulation, for some fixed \a k.  The list is passed as the
+         * argument \a srcFaces; the facial dimension \a k will be determined
+         * automatically from its type.
+         *
+         * See cloneSkeleton() for further details.
+         *
+         * \param srcFaces the list of all <i>k</i>-faces of the source
+         * triangulation, as stored in the Triangulation data structure.
+         */
+        template <typename FaceList>
+        void cloneFaces(const FaceList& srcFaces);
+
+        /**
+         * Internal to cloneSkeleton().
+         *
+         * This routine clones the list of all <i>k</i>-faces of some
+         * individual boundary component of the source triangulation, for some
+         * fixed \a k.  The list is passed as the argument \a srcFaces; the
+         * facial dimension \a k will be determined automatically from its type.
+         *
+         * See cloneSkeleton() for further details.
+         *
+         * \param bc a boundary component of this triangulation.  Typically
+         * this will hold incomplete data, since its internal face lists are
+         * still in the process of being filled.
+         * \param srcFaces the list of all <i>k</i>-faces of the corresponding
+         * boundary component in the source triangulation, as stored in the
+         * BoundaryComponent data structure.
+         */
+        template <typename FaceList>
+        void cloneBoundaryFaces(BoundaryComponent<dim>* bc,
+                const FaceList& srcFaces);
 
         /**
          * Internal to isoSig().
@@ -3160,6 +3467,78 @@ class TriangulationBase :
 
     protected:
         /**
+         * An object that facilitates both firing change events and
+         * calling clearAllProperties().
+         *
+         * An object of type ChangeAndClearSpan has two effects:
+         *
+         * - On construction and destruction, if this triangulation is actually
+         *   part of a PacketOf<Triangulation<dim>> then it fires a
+         *   PacketListener::packetToBeChanged() and
+         *   PacketListener::packetWasChanged() event respectively to all
+         *   registered packet listeners.
+         *
+         * - On destruction, this object calls
+         *   Triangulation<dim>::clearAllProperties()
+         *   (just before the final change event is fired).  This is always
+         *   done, whether or not the triangulation is held in a packet.
+         *
+         * The use of these objects is similar to Packet::ChangeEventSpan
+         * (and indeed, this class is intended to _replace_ ChangeEventSpan
+         * when writing Triangulation member functions): objects of this type
+         * would typically be created on the stack, just before the internal
+         * data within a triangulation is changed.
+         *
+         * Like ChangeEventSpan, these objects can be safely nested with other
+         * ChangeAndClearSpan and/or ChangeEventSpan objects.  However, unlike
+         * ChangeEventSpan, this comes with a cost: as always, only one
+         * set of change events will be fired; however, if there are multiple
+         * ChangeAndClearSpan objects then
+         * Triangulation<dim>::clearAllProperties() will be called
+         * multiple times.  This is harmless but inefficient.
+         *
+         * ChangeAndClearSpan  objects are not copyable, movable or swappable.
+         * In particular, Regina does not offer any way for a ChangeAndClearSpan
+         * to transfer its duty (i.e., firing events and calling
+         * clearAllProperties() upon destruction) to another object.
+         *
+         * \nopython
+         */
+        class ChangeAndClearSpan :
+                public PacketData<Triangulation<dim>>::ChangeEventSpan {
+            public:
+                /**
+                 * Creates a new change-and-clear object to work with the given
+                 * triangulation.
+                 *
+                 * If this is the only ChangeAndClearSpan or ChangeEventSpan
+                 * currently in existence for the given triangulation, this
+                 * constructor will call PacketListener::packetToBeChanged()
+                 * for all registered listeners for the given triangulation.
+                 *
+                 * \param tri the triangulation whose data is about to change.
+                 */
+                ChangeAndClearSpan(TriangulationBase& tri);
+
+                /**
+                 * Destroys this change-and-clear object.
+                 *
+                 * This destructor will first call
+                 * Triangulation<dim>::clearAllProperites().  Then, if this is
+                 * the only ChangeAndClearSpan or ChangeEventSpan currently
+                 * in existence for the given triangulation, it will call
+                 * PacketListener::packetWasChanged() for all registered
+                 * listeners for the given triangulation.
+                 */
+                ~ChangeAndClearSpan();
+
+                // Make this class non-copyable.
+                ChangeAndClearSpan(const ChangeAndClearSpan&) = delete;
+                ChangeAndClearSpan& operator = (const ChangeAndClearSpan&) =
+                    delete;
+        };
+
+        /**
          * Creates a temporary lock on the topological properties of
          * the given triangulation.  While this object exists, any
          * computed properties of the underlying _manifold_ will be
@@ -3263,29 +3642,38 @@ inline TriangulationBase<dim>::TriangulationBase() :
 
 template <int dim>
 inline TriangulationBase<dim>::TriangulationBase(
-        const TriangulationBase<dim>& copy) : TriangulationBase(copy, true) {
+        const TriangulationBase<dim>& src) : TriangulationBase(src, true) {
 }
 
 template <int dim>
-TriangulationBase<dim>::TriangulationBase(const TriangulationBase<dim>& copy,
+TriangulationBase<dim>::TriangulationBase(const TriangulationBase<dim>& src,
         bool cloneProps) :
-        Snapshottable<Triangulation<dim>>(copy),
-        topologyLock_(0), calculatedSkeleton_(false) {
+        Snapshottable<Triangulation<dim>>(src),
+        topologyLock_(0),
+        calculatedSkeleton_(false) {
     // We don't fire a change event here since this is a constructor.
     // There should be nobody listening on events yet.
     // Likewise, we don't clearAllProperties() since no properties
     // will have been computed yet.
 
-    simplices_.reserve(copy.simplices_.size());
+    simplices_.reserve(src.simplices_.size());
 
-    for (auto s : copy.simplices_)
-        simplices_.push_back(new Simplex<dim>(s->description(),
-            static_cast<Triangulation<dim>*>(this)));
+    if (cloneProps) {
+        // Clone simplices with descriptions and locks
+        for (auto s : src.simplices_)
+            simplices_.push_back(new Simplex<dim>(*s,
+                static_cast<Triangulation<dim>*>(this)));
+    } else {
+        // Clone simplices with descriptions only, no locks
+        for (auto s : src.simplices_)
+            simplices_.push_back(new Simplex<dim>(s->description_,
+                static_cast<Triangulation<dim>*>(this)));
+    }
 
     // Copy the internal simplex data, including gluings.
     int f;
     auto me = simplices_.begin();
-    auto you = copy.simplices_.begin();
+    auto you = src.simplices_.begin();
     for ( ; me != simplices_.end(); ++me, ++you) {
         for (f = 0; f <= dim; ++f) {
             if ((*you)->adj_[f]) {
@@ -3296,10 +3684,15 @@ TriangulationBase<dim>::TriangulationBase(const TriangulationBase<dim>& copy,
         }
     }
 
+    // Clone the skeleton:
+    if (src.calculatedSkeleton_)
+        static_cast<Triangulation<dim>*>(this)->cloneSkeleton(
+            static_cast<const Triangulation<dim>&>(src));
+
     // Clone properties:
     if (cloneProps) {
-        fundGroup_ = copy.fundGroup_;
-        H1_ = copy.H1_;
+        fundGroup_ = src.fundGroup_;
+        H1_ = src.H1_;
     }
 }
 
@@ -3353,7 +3746,7 @@ TriangulationBase<dim>& TriangulationBase<dim>::operator =
     simplices_.reserve(src.simplices_.size());
 
     for (auto s : src.simplices_)
-        simplices_.push_back(new Simplex<dim>(s->description(),
+        simplices_.push_back(new Simplex<dim>(*s,
             static_cast<Triangulation<dim>*>(this)));
 
     // Copy the internal simplex data, including gluings.
@@ -3370,13 +3763,14 @@ TriangulationBase<dim>& TriangulationBase<dim>::operator =
         }
     }
 
-    // Leave the skeleton to be recomputed on demand.
-
     // Do not touch topologyLock_, since other objects are managing this.
 
+    // Clone the skeleton:
+    if (src.calculatedSkeleton_)
+        static_cast<Triangulation<dim>*>(this)->cloneSkeleton(
+            static_cast<const Triangulation<dim>&>(src));
+
     // Clone properties:
-    valid_ = src.valid_;
-    orientable_ = src.orientable_;
     fundGroup_ = src.fundGroup_;
     H1_ = src.H1_;
 
@@ -3447,11 +3841,17 @@ inline const Simplex<dim>* TriangulationBase<dim>::simplex(size_t index) const {
 template <int dim>
 Simplex<dim>* TriangulationBase<dim>::newSimplex() {
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     auto* s = new Simplex<dim>(static_cast<Triangulation<dim>*>(this));
     simplices_.push_back(s);
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
+    return s;
+}
+
+template <int dim>
+inline Simplex<dim>* TriangulationBase<dim>::newSimplexRaw() {
+    auto* s = new Simplex<dim>(static_cast<Triangulation<dim>*>(this));
+    simplices_.push_back(s);
     return s;
 }
 
@@ -3462,75 +3862,104 @@ std::array<Simplex<dim>*, k> TriangulationBase<dim>::newSimplices() {
         "The template argument k to newSimplices() must be non-negative.");
 
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     std::array<Simplex<dim>*, k> ans;
     for (int i = 0; i < k; ++i)
         simplices_.push_back(ans[i] = new Simplex<dim>(
             static_cast<Triangulation<dim>*>(this)));
 
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
+    return ans;
+}
+
+template <int dim>
+template <int k>
+inline std::array<Simplex<dim>*, k> TriangulationBase<dim>::newSimplicesRaw() {
+    static_assert(k >= 0,
+        "The template argument k to newSimplicesRaw() must be non-negative.");
+
+    std::array<Simplex<dim>*, k> ans;
+    for (int i = 0; i < k; ++i)
+        simplices_.push_back(ans[i] = new Simplex<dim>(
+            static_cast<Triangulation<dim>*>(this)));
     return ans;
 }
 
 template <int dim>
 void TriangulationBase<dim>::newSimplices(size_t k) {
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     for (size_t i = 0; i < k; ++i)
         simplices_.push_back(new Simplex<dim>(
             static_cast<Triangulation<dim>*>(this)));
-
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
 }
 
 template <int dim>
 Simplex<dim>* TriangulationBase<dim>::newSimplex(const std::string& desc) {
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     auto* s = new Simplex<dim>(desc, static_cast<Triangulation<dim>*>(this));
     simplices_.push_back(s);
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
     return s;
 }
 
 template <int dim>
 inline void TriangulationBase<dim>::removeSimplex(Simplex<dim>* simplex) {
-    Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    if (simplex->lockMask() != 0)
+        throw LockViolation("An attempt was made to remove a "
+            "top-dimensional simplex that is locked and/or has a "
+            "locked facet");
 
-    simplex->isolate();
+    Snapshottable<Triangulation<dim>>::takeSnapshot();
+    ChangeAndClearSpan span(*this);
+
+    // We can use isolateRaw() because we are already managing locks,
+    // snapshots, change events and computed properties manually.
+    simplex->isolateRaw();
     simplices_.erase(simplices_.begin() + simplex->index());
     delete simplex;
+}
 
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
+template <int dim>
+inline void TriangulationBase<dim>::removeSimplexRaw(Simplex<dim>* simplex) {
+    simplex->isolateRaw();
+    simplices_.erase(simplices_.begin() + simplex->index());
+    delete simplex;
 }
 
 template <int dim>
 inline void TriangulationBase<dim>::removeSimplexAt(size_t index) {
-    Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
-
     Simplex<dim>* simplex = simplices_[index];
-    simplex->isolate();
+    if (simplex->lockMask() != 0)
+        throw LockViolation("An attempt was made to remove a "
+            "top-dimensional simplex that is locked and/or has a "
+            "locked facet");
+
+    Snapshottable<Triangulation<dim>>::takeSnapshot();
+    ChangeAndClearSpan span(*this);
+
+    // We can use isolateRaw() because we are already managing locks,
+    // snapshots, change events and computed properties manually.
+    simplex->isolateRaw();
     simplices_.erase(simplices_.begin() + index);
     delete simplex;
-
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
 }
 
 template <int dim>
 inline void TriangulationBase<dim>::removeAllSimplices() {
+    if (hasLocks())
+        throw LockViolation("An attempt was made to remove all "
+            "top-dimensional simplices in a triangulation with one or more "
+            "locked simplices or facets");
+
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     for (auto s : simplices_)
         delete s;
     simplices_.clear();
-
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
 }
 
 template <int dim>
@@ -3538,8 +3967,8 @@ void TriangulationBase<dim>::moveContentsTo(Triangulation<dim>& dest) {
     Snapshottable<Triangulation<dim>>::takeSnapshot();
     dest.Snapshottable<Triangulation<dim>>::takeSnapshot();
 
-    ChangeEventSpan span1(static_cast<Triangulation<dim>&>(*this));
-    ChangeEventSpan span2(dest);
+    ChangeAndClearSpan span1(*this);
+    ChangeAndClearSpan span2(dest);
 
     for (auto* s : simplices_) {
         // This is an abuse of MarkedVector, since for a brief moment
@@ -3551,9 +3980,54 @@ void TriangulationBase<dim>::moveContentsTo(Triangulation<dim>& dest) {
         dest.simplices_.push_back(s);
     }
     simplices_.clear();
+}
 
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
-    static_cast<Triangulation<dim>&>(dest).clearAllProperties();
+template <int dim>
+bool TriangulationBase<dim>::hasLocks() const {
+    for (auto s : simplices_)
+        if (s->locks_)
+            return true;
+    return false;
+}
+
+template <int dim>
+void TriangulationBase<dim>::lockBoundary() {
+    // We could do this without the skeleton, but this would require a full
+    // scan through all top-dimensional simplices.  Instead we guess that the
+    // user is likely to have already computed the skeleton (which means
+    // that ensureSkeleton() has no cost), and this will allow us to iterate
+    // through just the boundary facets only.
+
+    // The following test ensures that the skeleton is computed.
+    if (! hasBoundaryFacets())
+        return;
+
+    // Ensure that only one change event is fired.
+    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+
+    for (auto b : boundaryComponents_)
+        for (auto f : b->facets())
+            f->lock();
+}
+
+template <int dim>
+void TriangulationBase<dim>::unlockAll() {
+    auto it = simplices_.begin();
+    for ( ; it != simplices_.end(); ++it)
+        if ((*it)->locks_)
+            break;
+    if (it == simplices_.end())
+        return;
+
+    // There are actual locks to remove.  Set up the full machinery for
+    // change events / snapshotting / etc.
+    Snapshottable<Triangulation<dim>>::takeSnapshot();
+    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+
+    // Our iterator is currently pointing to the first simplex for which
+    // there is any kind of lock.
+    for ( ; it != simplices_.end(); ++it)
+        (*it)->locks_ = 0;
 }
 
 template <int dim>
@@ -4001,7 +4475,7 @@ template <int dim>
 void TriangulationBase<dim>::insertTriangulation(
         const Triangulation<dim>& source) {
     Snapshottable<Triangulation<dim>>::takeSnapshot();
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
+    ChangeAndClearSpan span(*this);
 
     size_t nOrig = size();
     size_t nSource = source.size();
@@ -4012,8 +4486,7 @@ void TriangulationBase<dim>::insertTriangulation(
 
     size_t i;
     for (i = 0; i < nSource; ++i)
-        simplices_.push_back(new Simplex<dim>(
-            source.simplices_[i]->description_,
+        simplices_.push_back(new Simplex<dim>(*source.simplices_[i],
             static_cast<Triangulation<dim>*>(this)));
 
     Simplex<dim> *me, *you;
@@ -4029,8 +4502,6 @@ void TriangulationBase<dim>::insertTriangulation(
                 me->adj_[f] = nullptr;
         }
     }
-
-    static_cast<Triangulation<dim>*>(this)->clearAllProperties();
 }
 
 template <int dim>
@@ -4199,262 +4670,6 @@ std::string TriangulationBase<dim>::dumpConstruction() const {
 }
 
 template <int dim>
-void TriangulationBase<dim>::writeTextShort(std::ostream& out) const {
-    if (isEmpty()) {
-        out << "Empty " << dim << "-D triangulation";
-        return;
-    }
-
-    if (! isValid())
-        out << "Invalid ";
-    else if constexpr (dim == 2) {
-        if (hasBoundaryFacets())
-            out << "Bounded ";
-        else
-            out << "Closed ";
-    } else if constexpr (standardDim(dim)) {
-        if (static_cast<const Triangulation<dim>*>(this)->isClosed())
-            out << "Closed ";
-        else if (static_cast<const Triangulation<dim>*>(this)->isIdeal()) {
-            if (hasBoundaryFacets())
-                out << "Ideal/bounded ";
-            else
-                out << "Ideal ";
-        } else
-            out << "Bounded ";
-    } else {
-        if (hasBoundaryFacets())
-            out << "Bounded ";
-        else
-            out << "Possibly closed ";
-    }
-
-    if (isOrientable())
-        out << "orientable ";
-    else
-        out << "non-orientable ";
-
-    out << dim << "-D triangulation, f = (";
-    for (auto f : fVector())
-        out << ' ' << f;
-    out << " )";
-}
-
-template <int dim>
-void TriangulationBase<dim>::writeTextLong(std::ostream& out) const {
-    ensureSkeleton();
-
-    if constexpr (dim > 4) {
-        writeTextShort(out);
-        out << "\n\n";
-    } else {
-        out << "Size of the skeleton:\n";
-        if constexpr (dim >= 4)
-            out << "  Pentachora: " << countFaces<4>() << '\n';
-        if constexpr (dim >= 3)
-            out << "  Tetrahedra: " << countFaces<3>() << '\n';
-        out << "  Triangles: " << countFaces<2>() << '\n';
-        out << "  Edges: " << countFaces<1>() << '\n';
-        out << "  Vertices: " << countFaces<0>() << '\n';
-        out << '\n';
-    }
-
-    Simplex<dim>* simp;
-    Simplex<dim>* adj;
-    size_t pos;
-    int j;
-    Perm<dim+1> gluing;
-
-    if constexpr (dim == 2)
-        out << "Triangle gluing:\n  Triangle  |  glued to:";
-    else if constexpr (dim == 3)
-        out << "Tetrahedron gluing:\n  Tet  |  glued to:";
-    else if constexpr (dim == 4)
-        out << "Pentachoron gluing:\n  Pent  |  glued to:";
-    else
-        out << "  Simplex  |  glued to:";
-    for (int i = dim; i >= 0; --i) {
-        if constexpr (dim == 3)
-            out << "      (";
-        else
-            out << "     (";
-        for (j = 0; j <= dim; ++j)
-            if (j != i)
-                out << regina::digit(j);
-        out << ')';
-    }
-    out << '\n';
-    if constexpr (dim == 2)
-        out << "  ----------+-----------";
-    else if constexpr (dim == 3)
-        out << "  -----+-----------";
-    else if constexpr (dim == 4)
-        out << "  ------+-----------";
-    else
-        out << "  ---------+-----------";
-    for (int i = dim; i >= 0; --i)
-        for (j = 0; j < (dim == 3 ? 11 : 7 + dim); ++j)
-            out << '-';
-    out << '\n';
-    for (pos=0; pos < simplices_.size(); pos++) {
-        simp = simplices_[pos];
-        if constexpr (dim == 2)
-            out << "      ";
-        else if constexpr (dim == 3)
-            out << ' ';
-        else if constexpr (dim == 4)
-            out << "  ";
-        else
-            out << "     ";
-        out << std::setw(4) << pos << "  |           ";
-        for (int i = dim; i >= 0; --i) {
-            adj = simp->adjacentSimplex(i);
-            if (! adj) {
-                for (j = 0; j < (dim == 3 ? 3 : dim - 1); ++j)
-                    out << ' ';
-                out << "boundary";
-            } else {
-                gluing = simp->adjacentGluing(i);
-                out << std::setw(dim == 3 ? 5 : 4) << adj->index() << " (";
-                for (j = 0; j <= dim; ++j) {
-                    if (j != i)
-                        out << regina::digit(gluing[j]);
-                }
-                out << ")";
-            }
-        }
-        out << '\n';
-    }
-    out << '\n';
-
-    // For Regina's standard dimensions, write skeletal details also.
-
-    if constexpr (dim <= 4) {
-        out << "Vertices:\n";
-        if constexpr (dim == 2)
-            out << "  Triangle  |  vertex: ";
-        else if constexpr (dim == 3)
-            out << "  Tet  |  vertex: ";
-        else if constexpr (dim == 4)
-            out << "  Pent  |  vertex: ";
-        for (int i = 0; i <= dim; ++i)
-            out << "   " << i;
-        out << '\n';
-        if constexpr (dim == 2)
-            out << "  ----------+----------";
-        else if constexpr (dim == 3)
-            out << "  -----+----------";
-        else if constexpr (dim == 4)
-            out << "  ------+----------";
-        for (int i = 0; i <= dim; ++i)
-            out << "----";
-        out << '\n';
-        for (size_t triPos = 0; triPos < simplices_.size(); ++triPos) {
-            const Simplex<dim>* tri = simplices_[triPos];
-            if constexpr (dim == 2)
-                out << "      " << std::setw(4) << triPos << "  |          ";
-            else if constexpr (dim == 3)
-                out << " " << std::setw(4) << triPos << "  |          ";
-            else if constexpr (dim == 4)
-                out << "  " << std::setw(4) << triPos << "  |          ";
-            for (int i = 0; i <= dim; ++i)
-                out << ' ' << std::setw(3) << tri->vertex(i)->index();
-            out << '\n';
-        }
-        out << '\n';
-
-        out << "Edges:\n";
-        if constexpr (dim == 2)
-            out << "  Triangle  |  edge: ";
-        else if constexpr (dim == 3)
-            out << "  Tet  |  edge: ";
-        else if constexpr (dim == 4)
-            out << "  Pent  |  edge: ";
-        for (int i1 = 0; i1 < dim; ++i1)
-            for (int i2 = i1 + 1; i2 <= dim; ++i2)
-                out << "  " << i1 << i2;
-        out << '\n';
-        if constexpr (dim == 2)
-            out << "  ----------+--------";
-        else if constexpr (dim == 3)
-            out << "  -----+--------";
-        else if constexpr (dim == 4)
-            out << "  ------+--------";
-        for (int i = 0; i < ((dim * (dim + 1)) / 2); ++i)
-            out << "----";
-        out << '\n';
-        for (size_t triPos = 0; triPos < simplices_.size(); ++triPos) {
-            const Simplex<dim>* tri = simplices_[triPos];
-            if constexpr (dim == 2)
-                out << "      " << std::setw(4) << triPos << "  |        ";
-            else if constexpr (dim == 3)
-                out << " " << std::setw(4) << triPos << "  |        ";
-            else if constexpr (dim == 4)
-                out << "  " << std::setw(4) << triPos << "  |        ";
-            // Forward lexicographic numbering kicks in at dimension 3.
-            if constexpr (dim == 2) {
-                for (int i = 2; i >= 0; --i)
-                    out << ' ' << std::setw(3) << tri->edge(i)->index();
-            } else {
-                for (int i = 0; i < ((dim * (dim + 1)) / 2); ++i)
-                    out << ' ' << std::setw(3) << tri->edge(i)->index();
-            }
-            out << '\n';
-        }
-        out << '\n';
-
-        if constexpr (dim >= 3) {
-            out << "Triangles:\n";
-            if constexpr (dim == 3)
-                out << "  Tet  |  face: ";
-            else
-                out << "  Pent  |  triangle: ";
-            for (int i1 = 0; i1 < dim - 1; ++i1)
-                for (int i2 = i1 + 1; i2 < dim; ++i2)
-                    for (int i3 = i2 + 1; i3 <= dim; ++i3)
-                        out << ' ' << i1 << i2 << i3;
-            out << '\n';
-            if constexpr (dim == 3)
-                out << "  -----+--------";
-            else
-                out << "  ------+------------";
-            for (int i = 0; i < (dim == 3 ? 4 : 10); ++i)
-                out << "----";
-            out << '\n';
-            for (size_t tetPos = 0; tetPos < simplices_.size(); ++tetPos) {
-                const Simplex<dim>* tet = simplices_[tetPos];
-                if constexpr (dim == 3)
-                    out << "  " << std::setw(3) << tetPos << "  |        ";
-                else
-                    out << "  " << std::setw(4) << tetPos << "  |            ";
-                // Forward lexicographic numbering kicks in at dimension 5.
-                // Here we are only working with dimensions 3 and 4.
-                for (int face = (dim == 3 ? 3 : 9); face >= 0; face--)
-                    out << ' ' << std::setw(3) << tet->triangle(face)->index();
-                out << '\n';
-            }
-            out << '\n';
-        }
-
-        if constexpr (dim == 4) {
-            // Here the dimension is fixed, and so we can just hard-code
-            // everything for dimension 4 specifically.
-            out << "Tetrahedra:\n";
-            out << "  Pent  |  facet:  0123 0124 0134 0234 1234\n";
-            out << "  ------+----------------------------------\n";
-            for (size_t pentPos = 0; pentPos < simplices_.size(); ++pentPos) {
-                const Simplex<dim>* pent = simplices_[pentPos];
-                out << "  " << std::setw(4) << pentPos << "  |         ";
-                for (int i = 4; i >= 0; --i)
-                    out << ' ' << std::setw(4) << pent->tetrahedron(i)->index();
-                out << '\n';
-            }
-            out << '\n';
-        }
-    }
-}
-
-template <int dim>
 inline void TriangulationBase<dim>::ensureSkeleton() const {
     if (! calculatedSkeleton_)
         const_cast<Triangulation<dim>*>(
@@ -4503,6 +4718,9 @@ void TriangulationBase<dim>::orient() {
             std::swap(s->adj_[dim - 1], s->adj_[dim]);
             std::swap(s->gluing_[dim - 1], s->gluing_[dim]);
 
+            s->locks_ = BitManipulator<decltype(s->locks_)>::swapBits(
+                s->locks_, dim - 1, dim);
+
             for (f = 0; f <= dim; ++f)
                 if (s->adj_[f]) {
                     if (s->adj_[f]->orientation_ == -1) {
@@ -4541,6 +4759,9 @@ void TriangulationBase<dim>::reflect() {
         std::swap(s->adj_[dim - 1], s->adj_[dim]);
         std::swap(s->gluing_[dim - 1], s->gluing_[dim]);
 
+        s->locks_ = BitManipulator<decltype(s->locks_)>::swapBits(
+            s->locks_, dim - 1, dim);
+
         for (f = 0; f <= dim; ++f)
             if (s->adj_[f]) {
                 // Fix the gluing from this side now, and fix it from
@@ -4556,254 +4777,8 @@ void TriangulationBase<dim>::reflect() {
 }
 
 template <int dim>
-void TriangulationBase<dim>::makeDoubleCover() {
-    size_t sheetSize = simplices_.size();
-    if (sheetSize == 0)
-        return;
-
-    // Ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span(static_cast<Triangulation<dim>&>(*this));
-
-    // Create a second sheet of simplices.
-    auto* upper = new Simplex<dim>*[sheetSize];
-    size_t i;
-    for (i = 0; i < sheetSize; i++)
-        upper[i] = newSimplex(simplices_[i]->description());
-
-    // Reset each simplex orientation.
-    auto sit = simplices_.begin();
-    for (i = 0; i < sheetSize; i++) {
-        (*sit++)->orientation_ = 0;
-        upper[i]->orientation_ = 0;
-    }
-
-    // Run through the upper sheet and recreate the gluings as we
-    // propagate simplex orientations through components.
-    //
-    // We use a breadth-first search to propagate orientations.
-    // The underlying queue is implemented using a plain C array - since each
-    // simplex is processed only once, an array of size sheetSize is enough.
-    //
-    // We will ignore the requirement that the lowest-index simplex in each
-    // component must have orientation +1: this is because our new orientations
-    // are temporary only.  (The calls to newSimplex() above will force a full
-    // recomputation of the skeleton when next required.)
-    auto* queue = new size_t[sheetSize];
-    size_t queueStart = 0, queueEnd = 0;
-
-    int facet;
-    size_t upperSimp;
-    Simplex<dim>* lowerSimp;
-    size_t upperAdj;
-    Simplex<dim>* lowerAdj;
-    int lowerAdjOrientation;
-    Perm<dim + 1> gluing;
-    for (i = 0; i < sheetSize; i++)
-        if (upper[i]->orientation_ == 0) {
-            // We've found a new component.
-            // Completely recreate the gluings for this component.
-            upper[i]->orientation_ = 1;
-            simplices_[i]->orientation_ = -1;
-            queue[queueEnd++] = i;
-
-            while (queueStart < queueEnd) {
-                upperSimp = queue[queueStart++];
-                lowerSimp = simplices_[upperSimp];
-
-                for (facet = 0; facet <= dim; ++facet) {
-                    lowerAdj = lowerSimp->adjacentSimplex(facet);
-
-                    // See if this simplex is glued to something in the
-                    // lower sheet.
-                    if (! lowerAdj)
-                        continue;
-
-                    // Make sure we haven't already fixed this gluing in
-                    // the upper sheet.
-                    if (upper[upperSimp]->adjacentSimplex(facet))
-                        continue;
-
-                    // Determine the expected orientation of the
-                    // adjacent simplex in the lower sheet.
-                    gluing = lowerSimp->adjacentGluing(facet);
-                    lowerAdjOrientation = (gluing.sign() == 1 ?
-                        -lowerSimp->orientation_ : lowerSimp->orientation_);
-
-                    upperAdj = lowerAdj->index();
-                    if (lowerAdj->orientation_ == 0) {
-                        // We haven't seen the adjacent simplex yet.
-                        lowerAdj->orientation_ = lowerAdjOrientation;
-                        upper[upperAdj]->orientation_ = -lowerAdjOrientation;
-                        upper[upperSimp]->join(facet, upper[upperAdj], gluing);
-                        queue[queueEnd++] = upperAdj;
-                    } else if (lowerAdj->orientation_ == lowerAdjOrientation) {
-                        // The adjacent simplex already has the
-                        // correct orientation.
-                        upper[upperSimp]->join(facet, upper[upperAdj], gluing);
-                    } else {
-                        // The adjacent simplex already has the
-                        // incorrect orientation.  Make a cross between
-                        // the two sheets.
-                        lowerSimp->unjoin(facet);
-                        lowerSimp->join(facet, upper[upperAdj], gluing);
-                        upper[upperSimp]->join(facet, lowerAdj, gluing);
-                    }
-                }
-            }
-        }
-
-    // Tidy up.
-    delete[] upper;
-    delete[] queue;
-}
-
-template <int dim>
-void TriangulationBase<dim>::subdivide() {
-    size_t nOld = simplices_.size();
-    if (nOld == 0)
-        return;
-
-    Triangulation<dim> staging;
-    // Ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span(staging);
-
-    static_assert(standardDim(dim),
-        "subdivide() may only be used in standard dimensions.");
-
-    auto* newSimp = new Simplex<dim>*[nOld * Perm<dim+1>::nPerms];
-
-    // A top-dimensional simplex in the subdivision is uniquely defined
-    // by a permutation p on (dim+1) elements.
-    //
-    // As described in the documentation for subdivide(),
-    // this is the simplex that:
-    // - meets the boundary in the facet opposite vertex p[dim];
-    // - meets that facet in the (dim-2)-face opposite vertex p[dim-1];
-    // - meets that (dim-2)-face in the (dim-3)-face opposite vertex p[dim-2];
-    // - ...
-    // - meets that edge in the vertex opposite vertex p[1];
-    // - directly touches vertex p[0].
-
-    size_t simp;
-    for (simp = 0; simp < Perm<dim+1>::nPerms * nOld; ++simp)
-        newSimp[simp] = staging.newSimplex();
-
-    // Do all of the internal gluings
-    typename Perm<dim+1>::Index permIdx, adjIdx;
-    Perm<dim+1> perm, glue;
-    int i;
-    for (simp=0; simp < nOld; ++simp)
-        for (permIdx = 0; permIdx < Perm<dim+1>::nPerms; ++permIdx) {
-            perm = Perm<dim+1>::orderedSn[permIdx];
-
-            // Internal gluings within the old simplex:
-            for (i = 0; i < dim; ++i) {
-                adjIdx = (perm * Perm<dim+1>(i, i+1)).orderedSnIndex();
-                if (permIdx < adjIdx)
-                    newSimp[Perm<dim+1>::nPerms * simp + permIdx]->join(perm[i],
-                        newSimp[Perm<dim+1>::nPerms * simp + adjIdx],
-                        Perm<dim+1>(perm[i], perm[i+1]));
-            }
-
-            // Adjacent gluings to the adjacent simplex:
-            Simplex<dim>* oldSimp = simplex(simp);
-            if (! oldSimp->adjacentSimplex(perm[dim]))
-                continue; // This hits a boundary facet.
-            if (newSimp[Perm<dim+1>::nPerms * simp + permIdx]->adjacentSimplex(
-                    perm[dim]))
-                continue; // We've already done this gluing from the other side.
-
-            glue = oldSimp->adjacentGluing(perm[dim]);
-            newSimp[Perm<dim+1>::nPerms * simp + permIdx]->join(perm[dim],
-                newSimp[Perm<dim+1>::nPerms * oldSimp->adjacentSimplex(
-                    perm[dim])->index() + (glue * perm).orderedSnIndex()],
-                glue);
-        }
-
-    // Delete the existing simplices and put in the new ones.
-    // TODO: If the skeleton has been calculated and we know the
-    // triangulation to be valid, then preserve vertex link properties.
-    static_cast<Triangulation<dim>*>(this)->swap(staging);
-    delete[] newSimp;
-}
-
-template <int dim>
 inline void TriangulationBase<dim>::barycentricSubdivision() {
     subdivide();
-}
-
-template <int dim>
-bool TriangulationBase<dim>::finiteToIdeal() {
-    if (! hasBoundaryFacets())
-        return false;
-
-    // Make a list of all boundary facets, indexed by (dim-1)-face number,
-    // and create the corresponding new simplices.
-    // We put these new simplices in a new "staging" triangulation for
-    // the time being, since we will still need to iterate through
-    // (dim-2)-faces of the original triangulation.
-
-    size_t nFaces = countFaces<dim - 1>();
-
-    auto* bdry = new Simplex<dim>*[nFaces];
-    auto* bdryPerm = new Perm<dim + 1>[nFaces];
-    auto* cone = new Simplex<dim>*[nFaces];
-
-    Triangulation<dim> staging;
-    // Ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span1(staging);
-
-    for (Face<dim, dim - 1>* f : faces<dim - 1>()) {
-        if (f->degree() > 1) {
-            // Not a boundary facet.
-            bdry[f->index()] = cone[f->index()] = nullptr;
-            continue;
-        }
-
-        bdry[f->index()] = f->front().simplex();
-        bdryPerm[f->index()] = f->front().vertices();
-        cone[f->index()] = staging.newSimplex();
-    }
-
-    // Glue the new simplices to each other.
-    Face<dim, dim - 1> *facet1, *facet2;
-    Perm<dim + 1> f1Perm, f2Perm;
-    for (auto ridge : faces<dim - 2>()) {
-        // Is this (dim-2)-face on a real boundary component?
-        // Look for the boundary facets at either end.
-        const FaceEmbedding<dim, dim - 2>& e1 = ridge->front();
-        facet1 = e1.simplex()->template face<dim - 1>(e1.vertices()[dim]);
-        if (facet1->degree() > 1)
-            continue;
-
-        // Yes!  We're on a real boundary component.
-        const FaceEmbedding<dim, dim - 2>& e2 = ridge->back();
-        facet2 = e2.simplex()->template face<dim - 1>(e2.vertices()[dim - 1]);
-
-        f1Perm = bdryPerm[facet1->index()].inverse() * e1.vertices();
-        f2Perm = bdryPerm[facet2->index()].inverse() * e2.vertices() *
-            Perm<dim + 1>(dim - 1, dim);
-
-        cone[facet1->index()]->join(f1Perm[dim - 1],
-            cone[facet2->index()], f2Perm * f1Perm.inverse());
-    }
-
-    // Now join the new simplices to the boundary facets of the original
-    // triangulation.
-    // Again, ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span2(static_cast<Triangulation<dim>&>(*this));
-
-    staging.moveContentsTo(static_cast<Triangulation<dim>&>(*this));
-
-    for (size_t i = 0; i < nFaces; ++i)
-        if (cone[i])
-            cone[i]->join(dim, bdry[i], bdryPerm[i]);
-
-    // Clean up and return.
-    delete[] cone;
-    delete[] bdryPerm;
-    delete[] bdry;
-    return true;
 }
 
 template <int dim>
@@ -4822,26 +4797,23 @@ std::vector<Triangulation<dim>>
 
     // Clone the simplices, sorting them into the new components.
     auto* newSimp = new Simplex<dim>*[size()];
-    Simplex<dim> *simp, *adj;
-    size_t simpPos, adjPos;
-    Perm<dim + 1> adjPerm;
-    int facet;
 
-    for (simpPos = 0; simpPos < size(); ++simpPos)
-        newSimp[simpPos] = ans[simplices_[simpPos]->component()->index()].
-            newSimplex(simplices_[simpPos]->description());
+    for (size_t simpPos = 0; simpPos < size(); ++simpPos) {
+        Triangulation<dim>& tri =
+            ans[simplices_[simpPos]->component()->index()];
+        newSimp[simpPos] = new Simplex<dim>(*simplices_[simpPos],
+            std::addressof(tri));
+        tri.simplices_.push_back(newSimp[simpPos]);
+    }
 
     // Clone the simplex gluings also.
-    for (simpPos = 0; simpPos < size(); ++simpPos) {
-        simp = simplices_[simpPos];
-        for (facet = 0; facet <= dim; ++facet) {
-            adj = simp->adjacentSimplex(facet);
+    for (size_t simpPos = 0; simpPos < size(); ++simpPos) {
+        Simplex<dim>* simp = simplices_[simpPos];
+        for (int facet = 0; facet <= dim; ++facet) {
+            Simplex<dim>* adj = simp->adjacentSimplex(facet);
             if (adj) {
-                adjPos = adj->index();
-                adjPerm = simp->adjacentGluing(facet);
-                if (adjPos > simpPos ||
-                        (adjPos == simpPos && adjPerm[facet] > facet))
-                    newSimp[simpPos]->join(facet, newSimp[adjPos], adjPerm);
+                newSimp[simpPos]->adj_[facet] = newSimp[adj->index()];
+                newSimp[simpPos]->gluing_[facet] = simp->adjacentGluing(facet);
             }
         }
     }
@@ -4946,6 +4918,26 @@ void TriangulationBase<dim>::writeXMLBaseProperties(std::ostream& out) const {
 }
 
 template <int dim>
+template <int subdim>
+inline Face<dim, subdim>* TriangulationBase<dim>::clonedFace(
+        const Face<dim, subdim>* src) const {
+    // This is a tiny function; it exists mainly to help in scenarios where
+    // the integer subdim is awkward to obtain (since it will be deduced
+    // here automatically from the type of the argument \a src).
+    return std::get<subdim>(faces_)[src->index()];
+}
+
+template <int dim>
+template <typename FaceList>
+inline void TriangulationBase<dim>::cloneBoundaryFaces(
+        BoundaryComponent<dim>* bc, const FaceList& srcFaces) {
+    // This is a tiny function; it exists so it can be used within a
+    // C++17 fold expression.
+    for (auto f : srcFaces)
+        bc->push_back(clonedFace(f));
+}
+
+template <int dim>
 inline Triangulation<dim> TriangulationBase<dim>::fromSig(
         const std::string& sig) {
     return TriangulationBase<dim>::fromIsoSig(sig);
@@ -4986,6 +4978,25 @@ inline bool TriangulationBase<dim>::sameDegreesAt(
         const TriangulationBase& other,
         std::integer_sequence<int, useDim...>) const {
     return (sameDegreesAt<useDim>(other) && ...);
+}
+
+// Inline functions for TriangulationBase::ChangeAndClearSpan
+
+template <int dim>
+inline TriangulationBase<dim>::ChangeAndClearSpan::ChangeAndClearSpan(
+        TriangulationBase& tri) :
+        PacketData<Triangulation<dim>>::ChangeEventSpan(
+            static_cast<Triangulation<dim>&>(tri)) {
+}
+
+template <int dim>
+inline TriangulationBase<dim>::ChangeAndClearSpan::~ChangeAndClearSpan() {
+    static_cast<Triangulation<dim>&>(
+        PacketData<Triangulation<dim>>::ChangeEventSpan::data_).
+        clearAllProperties();
+
+    // Now fall through to the parent class destructor, which fires change
+    // events.
 }
 
 // Inline functions for TriangulationBase::TopologyLock

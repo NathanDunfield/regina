@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -2120,6 +2120,10 @@ inline void swap(NormalSurface& a, NormalSurface& b) noexcept {
 }
 
 } // namespace regina
+
+// If we haven't yet seen the full definition of Triangulation<3>, include it
+// now - the SnapshotRef constructor (used inline above) needs it.
+#include "triangulation/dim3.h"
 
 #endif
 

@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Qt User Interface                                                     *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -657,7 +657,7 @@ void LinkCrossingsUI::simplifyExhaustive(int height) {
         (knot ? tr("Tried %1 knots") : tr("Tried %1 links")), ui);
 
     std::thread(&Link::simplifyExhaustive, link, height,
-        regina::politeThreads(), std::addressof(tracker)).detach();
+        ReginaPrefSet::threads(), std::addressof(tracker)).detach();
 
     if (dlg.run() && link->size() == initSize) {
         dlg.hide();

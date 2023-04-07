@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -79,14 +79,14 @@ long Triangulation<4>::eulerCharManifold() const {
     return ans;
 }
 
-Triangulation<4>::Triangulation(const Triangulation& X, bool cloneProps) :
-        TriangulationBase<4>(X, cloneProps),
-        vertexLinkSummary_(X.vertexLinkSummary_) /* always cloned */ {
+Triangulation<4>::Triangulation(const Triangulation& src, bool cloneProps) :
+        TriangulationBase<4>(src, cloneProps),
+        vertexLinkSummary_(src.vertexLinkSummary_) /* always cloned */ {
     // For other properties, the user gets to decide:
     if (! cloneProps)
         return;
 
-    prop_ = X.prop_;
+    prop_ = src.prop_;
 
     // We do not need to copy any properties that are computed on demand with
     // the rest of the skeleton; however, at the time of writing there

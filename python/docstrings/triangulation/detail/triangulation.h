@@ -74,12 +74,19 @@ namespace detail::TriangulationBase_ {
 constexpr const char *__copy =
 R"doc(Creates a new copy of the given triangulation.
 
-This will clone any computed properties (such as homology, fundamental
-group, and so on) of the given triangulation also. If you want a
-"clean" copy that resets all properties to unknown, you can use the
-two-argument copy constructor instead.
+This will also clone any computed properties (such as homology,
+fundamental group, and so on), as well as the skeleton (vertices,
+edges, components, etc.). In particular, the same numbering and
+labelling will be used for all skeletal objects.
 
-Parameter ``copy``:
+If *src* has any locks on top-dimensional simplices and/or their
+facets, these locks will also be copied across.
+
+If you want a "clean" copy that resets all properties to unknown and
+leaves the skeleton uncomputed, you can use the two-argument copy
+constructor instead.
+
+Parameter ``src``:
     the triangulation to copy.)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::__default
@@ -103,9 +110,10 @@ For the less strict notion of _isomorphic_ triangulations, which
 allows relabelling of the top-dimensional simplices and their
 vertices, see isIsomorphicTo() instead.
 
-This test does _not_ examine the textual simplex descriptions, as seen
-in Simplex<dim>::description(); these may still differ. It also does
-not test whether lower-dimensional faces are numbered identically
+This test does _not_ examine the textual simplex descriptions or
+simplex/facet locks, as seen in Simplex<dim>::description() and
+Simplex<dim>::lockMask(); these may still differ. It also does not
+test whether lower-dimensional faces are numbered identically
 (vertices, edges and so on); this routine is only concerned with top-
 dimensional simplices.
 
@@ -130,14 +138,32 @@ constexpr const char *__init =
 R"doc(Creates a new copy of the given triangulation, with the option of
 whether or not to clone its computed properties also.
 
-Parameter ``copy``:
+If *cloneProps* is ``True``, then this constructor will also clone any
+computed properties (such as homology, fundamental group, and so on),
+as well as the skeleton (vertices, edges, components, etc.). In
+particular, the same numbering and labelling will be used for all
+skeletal objects in both triangulations.
+
+If *cloneProps* is ``False``, then these properties and skeletal
+objects will be marked as unknown in the new triangulation, and will
+be recomputed on demand if/when they are required. Note in particular
+that, when the skeleton is recomputed, there is no guarantee that the
+numbering and labelling for skeletal objects will be the same as in
+the source triangulation.
+
+If *src* has any locks on top-dimensional simplices and/or their
+facets, these locks will be copied across _only_ if *cloneProps* is
+``True``. If *cloneProps* is ``False`` then the new triangulation will
+have no locks at all.
+
+Parameter ``src``:
     the triangulation to copy.
 
 Parameter ``cloneProps``:
-    ``True`` if this should also clone any computed properties of the
-    given triangulation (such as homology, fundamental group, and so
-    on), or ``False`` if the new triangulation should have all
-    properties marked as unknown.)doc";
+    ``True`` if this should also clone any computed properties as well
+    as the skeleton of the given triangulation, or ``False`` if the
+    new triangulation should have such properties and skeletal data
+    marked as unknown.)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::__ne
 constexpr const char *__ne =
@@ -154,9 +180,10 @@ For the less strict notion of _isomorphic_ triangulations, which
 allows relabelling of the top-dimensional simplices and their
 vertices, see isIsomorphicTo() instead.
 
-This test does _not_ examine the textual simplex descriptions, as seen
-in Simplex<dim>::description(); these may still differ. It also does
-not test whether lower-dimensional faces are numbered identically
+This test does _not_ examine the textual simplex descriptions or
+simplex/facet locks, as seen in Simplex<dim>::description() and
+Simplex<dim>::lockMask(); these may still differ. It also does not
+test whether lower-dimensional faces are numbered identically
 (vertices, edges and so on); this routine is only concerned with top-
 dimensional simplices.
 
@@ -1133,6 +1160,21 @@ not glued to an adjacent simplex.
 Returns:
     ``True`` if and only if there are boundary facets.)doc";
 
+// Docstring regina::python::doc::detail::TriangulationBase_::hasLocks
+constexpr const char *hasLocks =
+R"doc(Identifies whether any top-dimensional simplices and/or any of their
+facets are locked.
+
+In short, locking a top-dimensional simplex and/or some of its facets
+means that that the simplex and/or facets must not be changed. See
+Simplex<dim>::lock() and Simplex<dim>::lockFacet() for full details on
+how locks work and what their implications are.
+
+Returns:
+    ``True`` if and only if there is at least one locked top-
+    dimensional simplex or at least one locked facet of a top-
+    dimensional simplex within this triangulation.)doc";
+
 // Docstring regina::python::doc::detail::TriangulationBase_::homology
 constexpr const char *homology =
 R"doc(Returns the *k*th homology group of this triangulation, treating any
@@ -1216,6 +1258,9 @@ The copies will use the same vertex numbering and descriptions as the
 original simplices from *source*, and any gluings between the
 simplices of *source* will likewise be copied across as gluings
 between their copies in this triangulation.
+
+If *source* has locks on any top-dimensional simplices and/or their
+facets, these locks will also be copied over to this triangulation.
 
 This routine behaves correctly when *source* is this triangulation.
 
@@ -1581,6 +1626,21 @@ Returns:
     and the triangulation that would be reconstructed from
     fromIsoSig().)doc";
 
+// Docstring regina::python::doc::detail::TriangulationBase_::lockBoundary
+constexpr const char *lockBoundary =
+R"doc(Locks all boundary facets of this triangulation.
+
+In short, this means that the boundary facets must not be changed. See
+Simplex<dim>::lockFacet() for full details on how locks work and what
+their implications are.
+
+If there are any other locks on top-dimensional simplices and/or their
+facets, these other locks will be left intact.
+
+Note that this only locks the facets of real boundary components.
+Ideal boundary components are not affected (since they have no facets
+to lock).)doc";
+
 // Docstring regina::python::doc::detail::TriangulationBase_::makeCanonical
 constexpr const char *makeCanonical =
 R"doc(Relabel the top-dimensional simplices and their vertices so that this
@@ -1608,9 +1668,16 @@ Returns:
 
 // Docstring regina::python::doc::detail::TriangulationBase_::makeDoubleCover
 constexpr const char *makeDoubleCover =
-R"doc(Converts this triangulation into its double cover. Each orientable
-component will be duplicated, and each non-orientable component will
-be converted into its orientable double cover.)doc";
+R"doc(Converts this triangulation into its double cover.
+
+Each orientable component will be duplicated, and each non-orientable
+component will be converted into its orientable double cover.
+
+If this triangulation has locks on any top-dimensional simplices
+and/or their facets, these will not prevent the double cover from
+taking place. Instead, these locks will be duplicated alongside their
+corresponding simplices and/or facets (i.e., they will appear in both
+sheets of the double cover).)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::markedHomology
 constexpr const char *markedHomology =
@@ -1681,7 +1748,9 @@ into *dest* also (but in general their indices will change).
 
 This triangulation will become empty as a result.
 
-Any pointers or references to Simplex<dim> objects will remain valid.
+Any pointers or references to Simplex<dim> objects will remain valid,
+and any locks on top-dimensional simplices and/or their facets will be
+preserved.
 
 If your intention is to _replace_ the simplices in *dest* (i.e., you
 do not need to preserve the original contents), then consider using
@@ -1940,7 +2009,13 @@ R"doc(Removes all simplices from the triangulation. As a result, this
 triangulation will become empty.
 
 All of the simplices that belong to this triangulation will be
-destroyed immediately.)doc";
+destroyed immediately.
+
+Exception ``LockViolation``:
+    This triangulation contains at least one locked top-dimensional
+    simplex and/or facet. See Simplex<dim>::lock() and
+    Simplex<dim>::lockFacet() for further details on how such locks
+    work and what their implications are.)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::removeSimplex
 constexpr const char *removeSimplex =
@@ -1952,6 +2027,11 @@ any), and will be destroyed immediately.
 Precondition:
     The given simplex is a top-dimensional simplex in this
     triangulation.
+
+Exception ``LockViolation``:
+    The given simplex and/or one of its facets is currently locked.
+    See Simplex<dim>::lock() and Simplex<dim>::lockFacet() for further
+    details on how such locks work and what their implications are.
 
 Parameter ``simplex``:
     the simplex to remove.)doc";
@@ -1966,8 +2046,14 @@ This is equivalent to calling ``removeSimplex(simplex(index))``.
 The given simplex will be unglued from any adjacent simplices (if
 any), and will be destroyed immediately.
 
+Exception ``LockViolation``:
+    The requested simplex and/or one of its facets is currently
+    locked. See Simplex<dim>::lock() and Simplex<dim>::lockFacet() for
+    further details on how such locks work and what their implications
+    are.
+
 Parameter ``index``:
-    specifies which top-dimensionalsimplex to remove; this must be
+    specifies which top-dimensional simplex to remove; this must be
     between 0 and size()-1 inclusive.)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::simplex
@@ -2225,8 +2311,23 @@ earlier:
 
 * This function does not assign labels to the new components.
 
+If this triangulation has locks on any top-dimensional simplices
+and/or their facets, these locks will also be copied over to the
+newly-triangulated components.
+
 Returns:
     a list of individual component triangulations.)doc";
+
+// Docstring regina::python::doc::detail::TriangulationBase_::unlockAll
+constexpr const char *unlockAll =
+R"doc(Unlocks all top-dimensional simplices and their facets.
+
+In short, locking a top-dimensional simplex and/or some of its facets
+means that that the simplex and/or facets must not be changed. See
+Simplex<dim>::lock() and Simplex<dim>::lockFacet() for full details on
+how locks work and what their implications are.
+
+After this is routine called, hasLocks() will return ``False``.)doc";
 
 // Docstring regina::python::doc::detail::TriangulationBase_::vertex
 constexpr const char *vertex =

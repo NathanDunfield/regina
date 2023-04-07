@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -61,6 +61,7 @@ void addPermGroup(pybind11::module_& m, const char* name) {
             return g.begin();
         }, pybind11::keep_alive<0, 1>(), // iterator keeps group alive
             rdoc::__iter__)
+        .def_static("centraliser", &Group::centraliser, rdoc::centraliser)
     ;
     regina::python::add_output(c);
     regina::python::add_eq_operators(c, rdoc::__eq, rdoc::__ne);

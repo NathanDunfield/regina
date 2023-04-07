@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -116,6 +116,9 @@ void addTriangle3(pybind11::module_& m) {
             rbase::faceMapping)
         .def("vertexMapping", &Triangle<3>::vertexMapping, rbase::vertexMapping)
         .def("edgeMapping", &Triangle<3>::edgeMapping, rbase::edgeMapping)
+        .def("lock", &Triangle<3>::lock, rbase::lock)
+        .def("unlock", &Triangle<3>::unlock, rbase::unlock)
+        .def("isLocked", &Triangle<3>::isLocked, rbase::isLocked)
         .def_static("ordering", &Triangle<3>::ordering)
         .def_static("faceNumber", &Triangle<3>::faceNumber)
         .def_static("containsVertex", &Triangle<3>::containsVertex)

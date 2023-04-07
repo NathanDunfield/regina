@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -64,8 +64,10 @@ namespace regina {
  * facets.  Typically (but not necessarily) such triangulations are used
  * to represent <i>dim</i>-manifolds.
  *
- * Such triangulations are not the same as pure simplicial complexes, for two
- * reasons:
+ * ### Structure of triangulations
+ *
+ * Triangulations in Regina are not the same as pure simplicial complexes,
+ * for two reasons:
  *
  * - The only identifications that the user can explicitly specify are
  *   gluings between <i>dim</i>-dimensional simplices along their
@@ -94,6 +96,8 @@ namespace regina {
  * fromIsoSig() (which use _isomorphism signatures_), or dumpConstruction()
  * and fromGluings() (which use C++ code).
  *
+ * ### Skeleta and components
+ *
  * In additional to top-dimensional simplices, this class also tracks:
  *
  * - connected components of the triangulation, as represented by the
@@ -107,6 +111,8 @@ namespace regina {
  * be deleted and rebuilt, and any pointers to them will become invalid.
  * Likewise, if the triangulation is deleted then all component objects
  * will be deleted alongside it.
+ *
+ * ### The packet tree
  *
  * Since Regina 7.0, this is no longer a "packet type" that can be
  * inserted directly into the packet tree.  Instead a Triangulation is now a
@@ -123,11 +129,14 @@ namespace regina {
  *   Triangulation, and so inherits the full Triangulation interface.
  *
  * - If you are adding new functions to this class that edit the triangulation,
- *   you must still remember to create a ChangeEventSpan.  This will ensure
- *   that, if the triangulation is being managed by a PacketOf<Triangulation>,
- *   then the appropriate packet change events will be fired.  All other events
- *   (aside from packetToBeChanged() and packetWasChanged() are managed
- *   directly by the PacketOf<Triangulation> wrapper class.
+ *   you must still remember to create a ChangeEventSpan (or a
+ *   ChangeAndClearSpan).  This will ensure that, if the triangulation is being
+ *   managed by a PacketOf<Triangulation>, then the appropriate packet change
+ *   events will be fired.  All other events (aside from packetToBeChanged()
+ *   and packetWasChanged() are managed directly by the PacketOf<Triangulation>
+ *   wrapper class.
+ *
+ * ### C++ housekeeping
  *
  * This class implements C++ move semantics and adheres to the C++ Swappable
  * requirement.  It is designed to avoid deep copies wherever possible,
@@ -180,25 +189,50 @@ class Triangulation : public detail::TriangulationBase<dim> {
         /**
          * Creates a new copy of the given triangulation.
          *
-         * This will clone any computed properties (such as homology,
-         * fundamental group, and so on) of the given triangulation also.
-         * If you want a "clean" copy that resets all properties to unknown,
-         * you can use the two-argument copy constructor instead.
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, the same numbering and
+         * labelling will be used for all skeletal objects.
          *
-         * \param copy the triangulation to copy.
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
+         * If you want a "clean" copy that resets all properties to unknown
+         * and leaves the skeleton uncomputed, you can use the two-argument
+         * copy constructor instead.
+         *
+         * \param src the triangulation to copy.
          */
-        Triangulation(const Triangulation& copy);
+        Triangulation(const Triangulation& src) = default;
         /**
          * Creates a new copy of the given triangulation, with the option
          * of whether or not to clone its computed properties also.
          *
-         * \param copy the triangulation to copy.
+         * If \a cloneProps is \c true, then this constructor will also clone
+         * any computed properties (such as homology, fundamental group, and
+         * so on), as well as the skeleton (vertices, edges, components, etc.).
+         * In particular, the same numbering and labelling will be used for
+         * all skeletal objects in both triangulations.
+         *
+         * If \a cloneProps is \c false, then these properties and skeletal
+         * objects will be marked as unknown in the new triangulation, and
+         * will be recomputed on demand if/when they are required.  Note
+         * in particular that, when the skeleton is recomputed, there is
+         * no guarantee that the numbering and labelling for skeletal objects
+         * will be the same as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will be copied across _only_ if \a cloneProps
+         * is \c true.  If \a cloneProps is \c false then the new triangulation
+         * will have no locks at all.
+         *
+         * \param src the triangulation to copy.
          * \param cloneProps \c true if this should also clone any computed
-         * properties of the given triangulation (such as homology,
-         * fundamental group, and so on), or \c false if the new triangulation
-         * should have all properties marked as unknown.
+         * properties as well as the skeleton of the given triangulation,
+         * or \c false if the new triangulation should have such properties
+         * and skeletal data marked as unknown.
          */
-        Triangulation(const Triangulation& copy, bool cloneProps);
+        Triangulation(const Triangulation& src, bool cloneProps);
         /**
          * Moves the given triangulation into this new triangulation.
          *
@@ -212,6 +246,9 @@ class Triangulation : public detail::TriangulationBase<dim> {
          * Simplex<dim>, Face<dim, subdim>, Component<dim> or
          * BoundaryComponent<dim> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
          *
          * The triangulation that is passed (\a src) will no longer be usable.
          *
@@ -241,6 +278,15 @@ class Triangulation : public detail::TriangulationBase<dim> {
         /**
          * Sets this to be a (deep) copy of the given triangulation.
          *
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, this triangulation
+         * will use the same numbering and labelling for all skeletal objects
+         * as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
          * \return a reference to this triangulation.
          */
         Triangulation& operator = (const Triangulation&) = default;
@@ -259,6 +305,9 @@ class Triangulation : public detail::TriangulationBase<dim> {
          * Simplex<dim>, Face<dim, subdim>, Component<dim> or
          * BoundaryComponent<dim> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
          *
          * The triangulation that is passed (\a src) will no longer be usable.
          *
@@ -308,6 +357,10 @@ class Triangulation : public detail::TriangulationBase<dim> {
          *
          * In most cases this routine is followed immediately by firing
          * a change event.
+         *
+         * It is recommended that you use a local ChangeAndClearSpan object
+         * to manage both of these tasks (calling clearAllProperties() and
+         * firing change events), rather than calling this function manually.
          */
         void clearAllProperties();
 
@@ -466,14 +519,8 @@ inline Triangulation<dim>::Triangulation() : detail::TriangulationBase<dim>() {
 }
 
 template <int dim>
-inline Triangulation<dim>::Triangulation(const Triangulation& copy) :
-        detail::TriangulationBase<dim>(copy) {
-    // All properties to clone are held by TriangulationBase.
-}
-
-template <int dim>
-inline Triangulation<dim>::Triangulation(const Triangulation& copy,
-        bool cloneProps) : detail::TriangulationBase<dim>(copy, cloneProps) {
+inline Triangulation<dim>::Triangulation(const Triangulation& src,
+        bool cloneProps) : detail::TriangulationBase<dim>(src, cloneProps) {
     // All properties to clone are held by TriangulationBase.
 }
 

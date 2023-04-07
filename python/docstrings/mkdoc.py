@@ -356,6 +356,50 @@ def process_comment(comment, preserveAmpersands):
         else:
             # Split into paragraphs.
             for y in re.split(r'(?: *\n *){2,}', x):
+                # See if this paragraph looks like a heading.
+                #
+                # Here we assume that headings are contained in a single line,
+                # and we will treat them as being outside any lists.
+                #
+                # For now we support heading levels 1-6.
+                #
+                header = 0
+                if len(y) > 2 and y[:2] == '# ':
+                    header = y[2:]
+                    header_pre = '#' * len(header)
+                    header_post = header_pre
+                elif len(y) > 3 and y[:3] == '## ':
+                    header = y[3:]
+                    header_pre = '*' * len(header)
+                    header_post = header_pre
+                elif len(y) > 4 and y[:4] == '### ':
+                    header = y[4:]
+                    header_pre = None
+                    header_post = '=' * len(header)
+                elif len(y) > 5 and y[:5] == '#### ':
+                    header = y[5:]
+                    header_pre = None
+                    header_post = '-' * len(header)
+                elif len(y) > 6 and y[:6] == '##### ':
+                    header = y[6:]
+                    header_pre = None
+                    header_post = '^' * len(header)
+                elif len(y) > 7 and y[:7] == '###### ':
+                    header = y[7:]
+                    header_pre = None
+                    header_post = '"' * len(header)
+                if header:
+                    if header_pre:
+                        result += header_pre + '\n'
+                    result += header + '\n'
+                    if header_post:
+                        result += header_post + '\n'
+                    result += '\n'
+
+                    wrapper.initial_indent = wrapper.subsequent_indent = ''
+                    last_indent = ''
+                    continue
+
                 # Split out any list items in this paragraph.
                 # A paragraph has optional plain text, followed by one or more
                 # optional list items.  (In particular, the list items can
@@ -709,6 +753,12 @@ def read_args(args):
             sysroot_dir = os.path.join(sdk_dir, next(os.walk(sdk_dir))[1][0])
             parameters.append('-isysroot')
             parameters.append(sysroot_dir)
+
+        # There is no standard place on macOS for headers such as gmp.h, etc.
+        # Here we hope that the user has a macports installation where they
+        # might be found.
+        if os.path.exists('/opt/local/include'):
+            parameters.extend(['-isystem', '/opt/local/include'])
     elif platform.system() == 'Windows':
         if 'LIBCLANG_PATH' in os.environ:
             library_file = os.environ['LIBCLANG_PATH']
@@ -779,11 +829,6 @@ def read_args(args):
         cpp_dirs.append('/usr/include/%s-linux-gnu' % platform.machine())
         cpp_dirs.append('/usr/include')
 
-        # Capability to specify additional include directories manually
-        if 'CPP_INCLUDE_DIRS' in os.environ:
-            cpp_dirs.extend([cpp_dir for cpp_dir in os.environ['CPP_INCLUDE_DIRS'].split()
-                             if os.path.exists(cpp_dir)])
-
         for cpp_dir in cpp_dirs:
             if cpp_dir is None:
                 continue
@@ -794,6 +839,12 @@ def read_args(args):
             parameters.append(item)
         else:
             filenames.append(item)
+
+    # Capability to specify additional include directories manually
+    if 'CPP_INCLUDE_DIRS' in os.environ:
+        for cpp_dir in os.environ['CPP_INCLUDE_DIRS'].split():
+            if os.path.exists(cpp_dir):
+                parameters.append('-I' + cpp_dir)
 
     if len(filenames) == 0:
         raise NoFilenamesError("args parameter did not contain any filenames")

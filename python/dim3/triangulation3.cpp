@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -186,6 +186,10 @@ void addTriangulation3(pybind11::module_& m) {
         .def("swap", &Triangulation<3>::swap, rdoc::swap)
         .def("moveContentsTo", &Triangulation<3>::moveContentsTo,
             rbase::moveContentsTo)
+        .def("hasLocks", &Triangulation<3>::hasLocks, rbase::hasLocks)
+        .def("lockBoundary", &Triangulation<3>::lockBoundary,
+            rbase::lockBoundary)
+        .def("unlockAll", &Triangulation<3>::unlockAll, rbase::unlockAll)
         .def("countComponents", &Triangulation<3>::countComponents,
             rbase::countComponents)
         .def("countBoundaryComponents",

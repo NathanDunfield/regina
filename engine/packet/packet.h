@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -2351,7 +2351,7 @@ class PacketData {
          * \nopython
          */
         class ChangeEventSpan {
-            private:
+            protected:
                 PacketData& data_;
                     /**< The object for which - if it belongs to a
                          PacketOf<Held> - change events will be fired. */

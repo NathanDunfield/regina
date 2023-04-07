@@ -22,6 +22,10 @@ GroupExpressionTerm.
 For instance, the expression ``g1^2 g3^-1 g6`` contains the three
 terms ``g1^2``, ``g3^-1`` and ``g6^1`` in that order.
 
+Note that generators are indexed starting from 0 (so, for example,
+``g3`` represents the _fourth_ generator in the group presentation,
+not the third).
+
 This class implements C++ move semantics and adheres to the C++
 Swappable requirement. It is designed to avoid deep copies wherever
 possible, even when passing or returning objects by value.)doc";
@@ -177,13 +181,29 @@ Regina can recognise strings in the following four basic forms:
 
 * ``g0^7g1^-2``
 
-The string may contain whitespace, which will simply be ignored.
+The string may contain whitespace, which will simply be ignored. The
+empty string will be treated as an expression with no terms.
+
+Note that generators are numbered starting from 0. This means, for
+example, that ``a``, ``b`` and ``c`` correspond to ``g0``, ``g1`` and
+``g2`` respectively.
+
+If the optional argument *nGens* is passed and is positive, then this
+constructor will explicitly check that the given string only uses
+generators 0,...,(*nGens*-1).
 
 Exception ``InvalidArgument``:
-    The given string could not be interpreted as a group expression.
+    The given string could not be interpreted as a group expression,
+    or else *nGens* was positive and the given string contains an out-
+    of-range generator.
 
 Parameter ``input``:
-    the input string that is to be interpreted.)doc";
+    the input string that is to be interpreted.
+
+Parameter ``nGens``:
+    the number of generators in the group presentation. If this is 0
+    (the default), then this argument will be ignored and this
+    constructor will not check whether generators are within range.)doc";
 
 // Docstring regina::python::doc::GroupExpression_::__init_4
 static const char *__init_4 =
@@ -198,13 +218,29 @@ Regina can recognise strings in the following four basic forms:
 
 * ``g0^7g1^-2``
 
-The string may contain whitespace, which will simply be ignored.
+The string may contain whitespace, which will simply be ignored. The
+empty string will be treated as an expression with no terms.
+
+Note that generators are numbered starting from 0. This means, for
+example, that ``a``, ``b`` and ``c`` correspond to ``g0``, ``g1`` and
+``g2`` respectively.
+
+If the optional argument *nGens* is passed and is positive, then this
+constructor will explicitly check that the given string only uses
+generators 0,...,(*nGens*-1).
 
 Exception ``InvalidArgument``:
-    The given string could not be interpreted as a group expression.
+    The given string could not be interpreted as a group expression,
+    or else *nGens* was positive and the given string contains an out-
+    of-range generator.
 
 Parameter ``input``:
-    the input string that is to be interpreted.)doc";
+    the input string that is to be interpreted.
+
+Parameter ``nGens``:
+    the number of generators in the group presentation. If this is 0
+    (the default), then this argument will be ignored and this
+    constructor will not check whether generators are within range.)doc";
 
 // Docstring regina::python::doc::GroupExpression_::__ne
 static const char *__ne =
@@ -409,6 +445,10 @@ will format the word using lower-case ASCII, i.e., ``c^4 n^-5 e``.
 Note that there is also a zero-argument version of str(), inherited
 through the ShortOutput base class. This zero-argument str() gives the
 same output as ``str(false)``.
+
+Note that generators are numbered starting from 0. This means, for
+example, that ``a``, ``b`` and ``c`` correspond to ``g0``, ``g1`` and
+``g2`` respectively.
 
 Precondition:
     If *alphaGen* is ``True``, the number of generators in the
@@ -661,7 +701,7 @@ syntax of the form ``GroupPresentation(nGens, { "rel1", "rel2", ...
 
 Exception ``InvalidArgument``:
     One or more of the given strings could not be interpreted as a
-    group expression.
+    group expression, and/or contains an out-of-range generator.
 
 Parameter ``nGens``:
     the number of generators.
@@ -826,6 +866,20 @@ This routine produces a constant stream of output (i.e., it calls
     can be quite large, and (for example) if all you care about is
     their abelianisations then you are better off using the _abelian_
     group simplification / computation instead (which is much faster).
+
+Precondition:
+    Arrays on this system can be large enough to store ``2⋅(n-2)!``
+    objects. This is a technical condition on the bit-size of
+    ``size_t`` that will be explicitly checked (with an exception
+    thrown if it fails). On a 64-bit system this condition will be
+    true for all supported *n*, but on a 32-bit system or smaller it
+    will mean that enumerateCovers() cannot be used for larger values
+    of *n*.
+
+Exception ``FailedPrecondition``:
+    A signed integer of the same bit-size as ``size_t`` cannot hold
+    ``2⋅(n-2)!``. See the precondition above for further discussion on
+    this constraint.
 
 .. warning::
     The API for this class or function has not yet been finalised.
@@ -1015,6 +1069,11 @@ performed), then this homomorphsm will in fact be a declared
 isomorphism. See the HomGroupPresentation class notes for details on
 what this means.
 
+This routine is guaranteed to be deterministic: within the same
+version of Regina, simplifying identical group presentations will give
+identical results. These results could, however, change between
+different versions of Regina.
+
 .. note::
     If you all care about is whether the presentation changed, you can
     simply cast the return value to a ``bool``. This will then mirror
@@ -1038,6 +1097,11 @@ If this routine does return a homomorphism (because the presentation
 was changed), then this homomorphsm will in fact be a declared
 isomorphism. See the HomGroupPresentation class notes for details on
 what this means.
+
+This routine is guaranteed to be deterministic: within the same
+version of Regina, simplifying identical group presentations will give
+identical results. These results could, however, change between
+different versions of Regina.
 
 .. note::
     If you all care about is whether the presentation changed, you can
@@ -1143,7 +1207,7 @@ Returns:
 
 // Docstring regina::python::doc::GroupPresentation_::prettyRewriting
 static const char *prettyRewriting =
-R"doc(An entirely cosmetic re-writing of the presentation, which is fast and
+R"doc(An entirely cosmetic rewriting of the presentation, which is fast and
 superficial.
 
 1. If there are any length 1 relators, those generators are deleted,
@@ -1164,6 +1228,11 @@ If this routine does return a homomorphism (because the choice of
 generators was changed), then this homomorphsm will in fact be a
 declared isomorphism. See the HomGroupPresentation class notes for
 details on what this means.
+
+This routine is guaranteed to be deterministic: within the same
+version of Regina, simplifying identical group presentations will give
+identical results. These results could, however, change between
+different versions of Regina.
 
 .. note::
     If you all care about is whether the presentation changed, you can
@@ -1284,11 +1353,21 @@ measure of the complexity of the presentation.
 Returns:
     the sum of word lengths.)doc";
 
-// Docstring regina::python::doc::GroupPresentation_::simplifyWord
-static const char *simplifyWord =
-R"doc(Uses small cancellation theory to reduce the input word, using the
-current presentation of the group. The input word will be modified
-directly.
+// Docstring regina::python::doc::GroupPresentation_::simplifyAndConjugate
+static const char *simplifyAndConjugate =
+R"doc(Uses small cancellation theory to reduce the input word, modulo
+conjugation, using the current presentation of the group. The input
+word will be modified directly.
+
+By "modulo conjugation", we mean: if *w* represents the input word,
+then this routine might (as part of the reduction process) transform
+*w* into a different group element of the form ``g w g^-1``.
+
+In Regina 7.2 and earlier, this routine was called simplifyWord(). It
+was renamed to simplifyAndConjugate() in Regina 7.3 to make it clear
+to the user that conjugation might take place. Note that, even in
+older versions of Regina, this routine could always potentially
+conjugate.
 
 .. warning::
     This routine is only as good as the relator table for the group.
@@ -1296,9 +1375,9 @@ directly.
     in concert with proliferateRelators(), before using this routine
     for any significant tasks.
 
-Parameter ``input``:
-    is the word you would like to simplify. This must be a word in the
-    generators of this group.
+Parameter ``word``:
+    the word you would like to simplify (modulo conjugation). This
+    must be a word in the generators of this group.
 
 Returns:
     ``True`` if and only if the input word was modified.)doc";
@@ -1318,6 +1397,11 @@ If this routine does return a homomorphism (because the presentation
 was changed), then this homomorphsm will in fact be a declared
 isomorphism. See the HomGroupPresentation class notes for details on
 what this means.
+
+This routine is guaranteed to be deterministic: within the same
+version of Regina, simplifying identical group presentations will give
+identical results. These results could, however, change between
+different versions of Regina.
 
 .. note::
     If you all care about is whether the presentation changed, you can

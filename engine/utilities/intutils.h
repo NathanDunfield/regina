@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -286,6 +286,22 @@ struct IntOfMinSize {
      */
     using utype = typename IntOfSize<nextPowerOfTwo(bytes)>::utype;
 };
+
+/**
+ * Gives access to native integer types that hold _at least_ \a k bits,
+ * where \a k may be any compile-time constant.
+ *
+ * \tparam bytes the minimum number of bits in the native integer types
+ * (i.e., the integer \a k described above).
+ *
+ * \nopython
+ *
+ * \see IntOfSize
+ *
+ * \ingroup utilities
+ */
+template <int bits>
+using IntOfMinBits = IntOfMinSize<(bits + 7) / 8>;
 
 #ifdef __DOXYGEN
     /**

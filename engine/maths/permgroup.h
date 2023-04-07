@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -109,7 +109,7 @@ template <int n, bool cached = false>
 class PermGroup : public Output<PermGroup<n, cached>> {
     private:
         /**
-         * The permutation term_[k][j] for k >= j is:
+         * The permutation term_[k][j] for k ≥ j is:
          *
          * - any group element that maps k to j and fixes (k+1),...,(n-1),
          *   if the group has such an element;
@@ -134,14 +134,14 @@ class PermGroup : public Output<PermGroup<n, cached>> {
         Perm<n> term_[n][n];
 
         /**
-         * Indicates how many terms term_[k][j] are usable for each \a k.
-         * For each \a k, we have 1 ≤ count_[k] ≤ (k+1).
+         * Indicates how many terms term_[k][j] (where k ≥ j) are usable for
+         * each \a k.  For each \a k, we have 1 ≤ count_[k] ≤ (k+1).
          */
         int count_[n];
 
         /**
-         * Indicates which terms term_[k][j] are usable for each \a k.
-         * Specifically, if the usable terms for some \a k are
+         * Indicates which terms term_[k][j] (where k ≥ j) are usable for
+         * each \a k.  Specifically, if the usable terms for some \a k are
          * term_[k][a], term_[k][b], ..., term_[k][z], term_[k][k]
          * where `a < b < ... < z < k`, then usable_[k] maps
          * (0,1,...,count_[k]-1) to (a,b,...,z,k).
@@ -451,7 +451,7 @@ class PermGroup : public Output<PermGroup<n, cached>> {
          * time in \a n, but it is not as fast as (for example) directly
          * comparing the internal representations.
          *
-         * \other the group to compare this with.
+         * \param other the group to compare this with.
          * \return \c true if and only if this and the given group contain
          * the same permutations.
          */
@@ -468,7 +468,7 @@ class PermGroup : public Output<PermGroup<n, cached>> {
          * time in \a n, but it is not as fast as (for example) directly
          * comparing the internal representations.
          *
-         * \other the group to compare this with.
+         * \param other the group to compare this with.
          * \return \c true if and only if there is some permutation that
          * belongs to one group but not the other.
          */
@@ -538,12 +538,44 @@ class PermGroup : public Output<PermGroup<n, cached>> {
          */
         void writeTextLong(std::ostream& out) const;
 
+        /**
+         * Returns the group of all permutations that fix the minimal
+         * representative of the given conjugacy class under conjugation.
+         *
+         * Specifically, if \a r is the minimal representative of the
+         * given class as returned by `conj.rep()`, then this routine
+         * constructs the subgroup of all permutations \a p for which
+         * `p.inverse() * r * p == r`.
+         *
+         * \warning While "most" such centraliser groups are small,
+         * they _could_ get very large.  For example, if \a conj
+         * represents the identity permutation, then the centraliser
+         * will be all of S_n.  For \a n ≥ 5, it can be show that the
+         * next-worst case is where \a conj represents a single pair
+         * swap, in which case the centraliser has size `2⋅(n-2)!`.
+         *
+         * \pre \a conj is not the past-the-end conjugacy class.
+         *
+         * \return the group of all permutations that leave rep()
+         * fixed under conjugation.
+         */
+        static PermGroup centraliser(const PermClass<n>& conj);
+
     private:
         /**
-         * Additional initialisation tasks that are common to all
+         * Additional initialisation tasks that are common to (almost) all
          * constructors.
          *
          * Currently this just fills the initSeq_[] array.
+         *
+         * If this routine is ever extended to do more than fill initSeq_[],
+         * then the default constructor (which builds the trivial group) will
+         * need to be adjusted - currently it does not call setup() because
+         * the default initialisation of initSeq_[] is correct in this case.
+         *
+         * \pre This is called from the class constructor.  In particular,
+         * the permutations in initSeq_[] are set to their default values,
+         * i.e., the identity permutation.
          */
         void setup();
 };
@@ -615,7 +647,11 @@ inline PermGroup<n, cached>::PermGroup() {
     for (int i = 1; i < n; ++i)
         usable_[i] = Perm<n>(0, i);
 
-    setup();
+    // All initSeq_[k] are already (correctly) initialised to the identity.
+    // Therefore there is no need to call setup() - doing so would be
+    // harmless but redundant.
+
+    // setup();
 }
 
 template <int n, bool cached>
@@ -770,6 +806,10 @@ inline void PermGroup<n, cached>::writeTextShort(std::ostream& out) const {
 
 template <int n, bool cached>
 inline void PermGroup<n, cached>::setup() {
+    // Note: if this routine is ever expanded to do more than fill initSeq[],
+    // then the default constructor will need to be adjusted accordingly (since
+    // it does not call setup()).  See the setup() notes for details.
+
     // initSeq_[0] is already (correctly) the identity.
     for (int k = 1; k < n; ++k)
         if (count_[k] == 1) {

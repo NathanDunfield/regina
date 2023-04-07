@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -134,9 +134,6 @@ Triangulation<dim-1>* BoundaryComponentBase<dim>::buildRealBoundary() const {
     // not a pointer), then we need to change the lambda at the end of
     // this function to capture by reference, not by value.
     auto* ans = new Triangulation<dim-1>();
-
-    // Ensure only one event pair is fired in this sequence of changes.
-    typename Triangulation<dim-1>::ChangeEventSpan span(*ans);
 
     for (auto s : allFacets)
         bdrySimplex[s->index()] = ans->newSimplex();

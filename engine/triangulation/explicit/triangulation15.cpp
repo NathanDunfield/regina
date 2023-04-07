@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -34,6 +34,7 @@
 #include "triangulation/detail/isosig-impl.h"
 #include "triangulation/detail/pachner-impl.h"
 #include "triangulation/detail/skeleton-impl.h"
+#include "triangulation/detail/triangulation-impl.h"
 #include "triangulation/generic.h"
 
 namespace regina::detail {
@@ -111,6 +112,8 @@ template MatrixInt TriangulationBase<15>::dualToPrimal<14>() const;
 template const GroupPresentation& TriangulationBase<15>::group() const;
 
 template void TriangulationBase<15>::calculateSkeleton();
+template void TriangulationBase<15>::cloneSkeleton(
+    const TriangulationBase<15>&);
 template void TriangulationBase<15>::clearBaseProperties();
 template void TriangulationBase<15>::swapBaseData(TriangulationBase<15>&);
 
@@ -130,5 +133,11 @@ template bool TriangulationBase<15>::pachner(Face<15, 12>*, bool, bool);
 template bool TriangulationBase<15>::pachner(Face<15, 13>*, bool, bool);
 template bool TriangulationBase<15>::pachner(Face<15, 14>*, bool, bool);
 template bool TriangulationBase<15>::pachner(Face<15, 15>*, bool, bool);
+
+template void TriangulationBase<15>::writeTextShort(std::ostream&) const;
+template void TriangulationBase<15>::writeTextLong(std::ostream&) const;
+
+template void TriangulationBase<15>::makeDoubleCover();
+template bool TriangulationBase<15>::finiteToIdeal();
 
 } // namespace regina::detail

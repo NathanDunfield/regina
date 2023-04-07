@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -335,9 +335,6 @@ std::pair<typename Encoding::Signature, Isomorphism<dim>>
 template <int dim>
 Triangulation<dim> TriangulationBase<dim>::fromIsoSig(const std::string& sig) {
     Triangulation<dim> ans;
-
-    // Ensure only one event pair is fired in this sequence of changes.
-    typename Triangulation<dim>::ChangeEventSpan span(ans);
 
     const char* c = sig.c_str();
 

@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -236,6 +236,24 @@ class UnsolvedCase : public ReginaException {
         UnsolvedCase(const char* msg) : ReginaException(msg) {}
         UnsolvedCase(const UnsolvedCase&) noexcept = default;
         UnsolvedCase& operator = (const UnsolvedCase&) noexcept = default;
+};
+
+/**
+ * An exception thrown when an attempt is made to violate a simplex or facet
+ * lock.  See Simplex<dim>::lock() and Simplex<dim>::lockFacet() for further
+ * details on simplex/facet locks and what restrictions they impose.
+ *
+ * All member functions follow the same pattern as the parent class
+ * ReginaException, and are not documented again here.
+ *
+ * \ingroup utilities
+ */
+class LockViolation : public ReginaException {
+    public:
+        LockViolation(const std::string& msg) : ReginaException(msg) {}
+        LockViolation(const char* msg) : ReginaException(msg) {}
+        LockViolation(const LockViolation&) noexcept = default;
+        LockViolation& operator = (const LockViolation&) noexcept = default;
 };
 
 /**

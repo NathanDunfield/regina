@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -50,8 +50,10 @@ class FacePair;
 /**
  * Represents the dual graph of a 3-manifold triangulation.
  *
- * This is a specialisation of the generic FacetPairing class template;
- * see the FacetPairing documentation for an overview of how this class works.
+ * This is a specialisation of the generic FacetPairing class template; see the
+ * generic FacetPairing documentation for an overview of how the facet pairing
+ * classes work.  In Python, you can read this generic documentation by
+ * looking at a higher dimension: try `help(FacetPairing5)`.
  *
  * This 3-dimensional specialisation contains some extra functionality.
  * In particular, it provides routines for finding informative subgraphs

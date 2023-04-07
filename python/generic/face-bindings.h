@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -155,9 +155,13 @@ void addFace(pybind11::module_& m, const char* name, const char* embName) {
         c.def("vertexMapping", &Face<dim, subdim>::vertexMapping,
             rbase::vertexMapping);
     }
-    if constexpr (dim - subdim == 1)
+    if constexpr (dim - subdim == 1) {
+        c.def("lock", &Face<dim, subdim>::lock, rbase::lock);
+        c.def("unlock", &Face<dim, subdim>::unlock, rbase::unlock);
+        c.def("isLocked", &Face<dim, subdim>::isLocked, rbase::isLocked);
         c.def("inMaximalForest", &Face<dim, subdim>::inMaximalForest,
             rbase::inMaximalForest);
+    }
     regina::python::add_output(c);
     regina::python::add_eq_operators(c);
 

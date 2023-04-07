@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Qt User Interface                                                     *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -682,7 +682,7 @@ void Tri4GluingsUI::simplifyExhaustive(int height) {
         tr("Tried %1 triangulations"), ui);
 
     std::thread(&Triangulation<4>::simplifyExhaustive, tri, height,
-        regina::politeThreads(), &tracker).detach();
+        ReginaPrefSet::threads(), &tracker).detach();
 
     if (dlg.run() && tri->size() == initSize) {
         dlg.hide();

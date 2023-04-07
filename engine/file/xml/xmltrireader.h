@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -338,6 +338,22 @@ inline void XMLSimplexReader<dim>::startElement(const std::string&,
     auto desc = props.find("desc");
     if (desc != props.end())
         simplex_->setDescription(desc->second);
+
+    auto lock = props.find("lock");
+    if (lock != props.end() && ! lock->second.empty()) {
+        // Read the lock mask as an unsigned long, since this is guaranteed
+        // to be ≥ 32 bits (which means it is large enough for all of Regina's
+        // supported dimensions).
+        char* endPtr;
+        unsigned long mask = strtoul(lock->second.c_str(), &endPtr, 16);
+        if ((*endPtr == 0) && (mask >> (dim + 2) == 0)) {
+            // This is a valid lock mask.
+            simplex_->locks_ = mask;
+
+            // TODO: We should verify that facet locks are consistent
+            // where facets are joined together.
+        }
+    }
 }
 
 template <int dim>

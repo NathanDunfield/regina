@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -53,8 +53,10 @@ namespace regina {
 /**
  * Represents a connected component of a 3-manifold triangulation.
  *
- * This is a specialisation of the generic Component class template; see
- * the Component documentation for an overview of how this class works.
+ * This is a specialisation of the generic Component class template; see the
+ * generic Component documentation for an overview of how the component
+ * classes work.  In Python, you can read this generic documentation by
+ * looking at a higher dimension: try `help(Component5)`.
  *
  * This 3-dimensional specialisation contains some extra functionality.
  * In particular, each 3-dimensional component also stores details on

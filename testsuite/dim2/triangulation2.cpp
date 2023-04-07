@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Test Suite                                                            *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -49,6 +49,7 @@ class Triangulation2Test : public TriangulationTest<2> {
     CPPUNIT_TEST(makeCanonical);
     CPPUNIT_TEST(isomorphismSignature);
     CPPUNIT_TEST(orient);
+    CPPUNIT_TEST(skeleton);
     CPPUNIT_TEST(doubleCover);
     CPPUNIT_TEST(boundaryEdges);
     CPPUNIT_TEST(boundaryFaces);
@@ -144,6 +145,10 @@ class Triangulation2Test : public TriangulationTest<2> {
 
         void orient() {
             testManualAll(verifyOrient);
+        }
+
+        void skeleton() {
+            testManualAll(verifySkeleton);
         }
 
         void doubleCover() {

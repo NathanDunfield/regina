@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -38,6 +38,10 @@
 #include "docstrings/core/engine.h"
 #include "docstrings/core/regina-core.h"
 #include "docstrings/python/equality.h"
+
+// Additional headers for timeExceptions():
+#include "maths/perm.h"
+#include <chrono>
 
 // Docstrings that are generated once but need to be reused across many
 // source files:
@@ -171,7 +175,7 @@ namespace {
     std::string welcome() {
         return std::string(PACKAGE_STRING) +
             "\nSoftware for low-dimensional topology" +
-            "\nCopyright (c) 1999-2022, The Regina development team";
+            "\nCopyright (c) 1999-2023, The Regina development team";
     }
 }
 
@@ -225,6 +229,51 @@ a new Python session.)doc");
     m.def("hasInt128", regina::hasInt128, rdoc::hasInt128);
     m.def("politeThreads", regina::politeThreads, rdoc::politeThreads);
     m.def("testEngine", regina::testEngine, rdoc::testEngine);
+
+    // Python-only:
+    m.def("timeExceptions", []() {
+        auto t0 = std::chrono::system_clock::now();
+        try {
+            // Use a routine that does a bit of work and throws an exception.
+            // We can be reasonably confident that the compiler hasn't
+            // optimised away the try/catch block.
+            regina::Perm<2>::tightDecoding("_");
+        } catch (const regina::InvalidArgument&) {
+        }
+        auto t1 = std::chrono::system_clock::now();
+        {
+            // A case where no exception gets thrown, for comparison.
+            regina::Perm<2>::tightDecoding("!"); // identity permutation
+        }
+        auto t2 = std::chrono::system_clock::now();
+        try {
+            throw regina::FailedPrecondition("Oops!");
+        } catch (const regina::FailedPrecondition&) {
+        }
+        auto t3 = std::chrono::system_clock::now();
+        try {
+            throw pybind11::stop_iteration();
+        } catch (const pybind11::stop_iteration&) {
+        }
+        auto t4 = std::chrono::system_clock::now();
+
+        using tick = std::chrono::microseconds;
+        return std::make_tuple(
+            std::chrono::duration_cast<tick>(t1 - t0).count(),
+            std::chrono::duration_cast<tick>(t2 - t1).count(),
+            std::chrono::duration_cast<tick>(t3 - t2).count(),
+            std::chrono::duration_cast<tick>(t4 - t3).count());
+    }, R"doc(Diagnostic routine to test the performance of C++ exceptions.
+
+This routine performs several C++ operations, most involving try/catch
+blocks using either Regina or pybind11 exceptions, and measures their
+running times.
+
+Returns:
+    A tuple giving the elapsed time for each operation, measured in
+    microseconds.  The size of this tuple, as well as the specific
+    operations performed, are subject to change in future versions of
+    Regina.)doc");
 
     RDOC_SCOPE_SWITCH(Algorithm)
 

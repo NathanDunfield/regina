@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -42,18 +42,22 @@ bool Triangulation<3>::idealToFinite() {
     if (isValid() && ! isIdeal())
         return false;
 
-    int i,j,k,l;
-    long numOldTet = simplices_.size();
+    size_t numOldTet = simplices_.size();
     if (! numOldTet)
         return false;
 
+    // Any simplex or facet locks at all will be a problem here.
+    if (hasLocks())
+        throw LockViolation("An attempt was made to subdivide a "
+            "triangulation with one or more locked tetrahedra or triangles");
+
+    // Since staging is new here, we will use the "raw" simplex routines
+    // that do not generate change events / snapshots, check locks, etc.
     Triangulation<3> staging;
-    // Ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span1(staging);
 
     auto* newTet = new Tetrahedron<3>*[32*numOldTet];
-    for (i=0; i<32*numOldTet; i++)
-        newTet[i] = staging.newTetrahedron();
+    for (size_t i=0; i<32*numOldTet; i++)
+        newTet[i] = staging.newSimplexRaw();
 
     int tip[4];
     int interior[4];
@@ -61,11 +65,11 @@ bool Triangulation<3>::idealToFinite() {
     int vertex[4][4];
 
     int nDiv = 0;
-    for (j=0; j<4; j++) {
+    for (int j=0; j<4; j++) {
         tip[j] = nDiv++;
         interior[j] = nDiv++;
 
-        for (k=0; k<4; k++)
+        for (int k=0; k<4; k++)
             if (j != k) {
                 edge[j][k] = nDiv++;
                 vertex[j][k] = nDiv++;
@@ -74,90 +78,90 @@ bool Triangulation<3>::idealToFinite() {
 
     // First glue all of the tetrahedra inside the same
     // old tetrahedron together.
-    for (i=0; i<numOldTet; i++) {
+    for (size_t i=0; i<numOldTet; i++) {
         // Glue the tip tetrahedra to the others.
-        for (j=0; j<4; j++)
-            newTet[tip[j] + i * nDiv]->join(j,
+        for (int j=0; j<4; j++)
+            newTet[tip[j] + i * nDiv]->joinRaw(j,
                 newTet[interior[j] + i * nDiv], Perm<4>());
 
         // Glue the interior tetrahedra to the others.
-        for (j=0; j<4; j++) {
-            for (k=0; k<4; k++)
+        for (int j=0; j<4; j++) {
+            for (int k=0; k<4; k++)
                 if (j != k) {
-                    newTet[interior[j] + i * nDiv]->join(k,
+                    newTet[interior[j] + i * nDiv]->joinRaw(k,
                         newTet[vertex[k][j] + i * nDiv], Perm<4>());
                 }
         }
 
         // Glue the edge tetrahedra to the others.
-        for (j=0; j<4; j++)
-            for (k=0; k<4; k++)
+        for (int j=0; j<4; j++)
+            for (int k=0; k<4; k++)
                 if (j != k) {
                     if (j < k)
-                        newTet[edge[j][k] + i * nDiv]->join(j,
+                        newTet[edge[j][k] + i * nDiv]->joinRaw(j,
                             newTet[edge[k][j] + i * nDiv], Perm<4>(j,k));
 
-                    for (l=0; l<4; l++)
+                    for (int l=0; l<4; l++)
                         if ( (l != j) && (l != k) )
-                            newTet[edge[j][k] + i * nDiv]->join(l,
+                            newTet[edge[j][k] + i * nDiv]->joinRaw(l,
                                 newTet[vertex[j][l] + i * nDiv], Perm<4>(k,l));
                 }
     }
 
     // Now deal with the gluings between the pieces inside adjacent tetrahedra.
-    Tetrahedron<3> *ot;
-    long oppTet;
-    Perm<4> p;
-    for (i=0; i<numOldTet; i++) {
-        ot = tetrahedron(i);
-        for (j=0; j<4; j++)
+    for (size_t i=0; i<numOldTet; i++) {
+        Tetrahedron<3>* ot = tetrahedron(i);
+        for (int j=0; j<4; j++)
             if (ot->adjacentTetrahedron(j)) {
-                 oppTet = ot->adjacentTetrahedron(j)->index();
-                 p = ot->adjacentGluing(j);
+                 size_t oppTet = ot->adjacentTetrahedron(j)->index();
+                 Perm<4> p = ot->adjacentGluing(j);
 
                  // Do each gluing from one side only.
                  if (oppTet < i || (oppTet == i && p[j] < j))
                     continue;
 
                  // First deal with the tip tetrahedra.
-                 for (k=0; k<4; k++)
+                 for (int k=0; k<4; k++)
                      if (j != k)
-                          newTet[tip[k] + i * nDiv]->join(j,
+                          newTet[tip[k] + i * nDiv]->joinRaw(j,
                               newTet[tip[p[k]] + oppTet * nDiv], p);
 
                  // Next the edge tetrahedra.
-                 for (k=0; k<4; k++)
+                 for (int k=0; k<4; k++)
                      if (j != k)
-                         newTet[edge[j][k] + i * nDiv]->join(k,
+                         newTet[edge[j][k] + i * nDiv]->joinRaw(k,
                              newTet[edge[p[j]][p[k]] + oppTet * nDiv], p);
 
                  // Finally, the vertex tetrahedra.
-                 for (k=0; k<4; k++)
+                 for (int k=0; k<4; k++)
                      if (j != k)
-                         newTet[vertex[j][k] + i * nDiv]->join(k,
+                         newTet[vertex[j][k] + i * nDiv]->joinRaw(k,
                              newTet[vertex[p[j]][p[k]] + oppTet * nDiv], p);
 
             }
     }
 
-    // Ensure only one event pair is fired in this sequence of changes.
-    ChangeEventSpan span2(*this);
+    // Now remove any new tetrahedra that touch an ideal or invalid vertex.
+    // We do this by making a list first, then actually doing the deletion
+    // (since the first deletion will destroy the skeleton).
 
-    swap(staging);
-    ensureSkeleton();
+    staging.ensureSkeleton();
 
-    // Remove the tetrahedra that meet any of the ideal or invalid vertices.
-    // First we make a list of the tetrahedra.
     std::vector<Tetrahedron<3>*> tetList;
-    for (Vertex<3>* v : vertices())
+    for (Vertex<3>* v : staging.vertices())
         if (v->isIdeal() || ! v->isValid())
             for (auto& emb : *v)
                 tetList.push_back(emb.tetrahedron());
 
-    // Now remove the tetrahedra.
-    // Note: removeTetrahedron() automatically deletes the tetrahedron also.
+    // Delete the skeleton manually, since we are using removeSimplexRaw().
+    staging.clearAllProperties();
+
     for (auto t : tetList)
-        removeTetrahedron(t);
+        staging.removeSimplexRaw(t);
+
+    // We are now ready to change the main triangulation.
+    // This is where the change event and snapshot will be fired.
+    swap(staging);
 
     delete[] newTet;
     return true;

@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Python Interface                                                      *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -133,12 +133,13 @@ void addPermClass(pybind11::module_& m, const char* name) {
         .def(pybind11::init<>(), rdoc::__default)
         .def(pybind11::init<const PermClass<n>&>(), rdoc::__copy)
         .def("isIdentity", &PermClass<n>::isIdentity, rdoc::isIdentity)
+        .def("cycle", &PermClass<n>::cycle, rdoc::cycle)
+        .def("countCycles", &PermClass<n>::countCycles, rdoc::countCycles)
         .def("rep", &PermClass<n>::rep, rdoc::rep)
         .def("inc", [](PermClass<n>& p) {
             return p++;
         }, rdoc::__inc)
         .def("__bool__", &PermClass<n>::operator bool, rdoc::__as_bool)
-        .def("centraliser", &PermClass<n>::centraliser, rdoc::centraliser)
         .def_readonly_static("count", &PermClass<n>::count)
     ;
     regina::python::add_output_basic(c, rdoc::str);

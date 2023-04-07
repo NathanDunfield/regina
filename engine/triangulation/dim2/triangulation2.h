@@ -4,7 +4,7 @@
  *  Regina - A Normal Surface Theory Calculator                           *
  *  Computational Engine                                                  *
  *                                                                        *
- *  Copyright (c) 1999-2022, Ben Burton                                   *
+ *  Copyright (c) 1999-2023, Ben Burton                                   *
  *  For further details contact Ben Burton (bab@debian.org).              *
  *                                                                        *
  *  This program is free software; you can redistribute it and/or         *
@@ -62,8 +62,9 @@ namespace regina {
  * Represents a 2-manifold triangulation.
  *
  * This is a specialisation of the generic Triangulation class template;
- * see the Triangulation documentation for a general overview of how
- * the triangulation classes work.
+ * see the generic Triangulation documentation for a general overview of how
+ * the triangulation classes work.  In Python, you can read this generic
+ * documentation by looking at a higher dimension: try `help(Triangulation5)`.
  *
  * This 2-dimensional specialisation offers significant extra functionality,
  * including many functions specific to 2-manifolds.
@@ -93,25 +94,50 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
         /**
          * Creates a new copy of the given triangulation.
          *
-         * This will clone any computed properties (such as homology,
-         * fundamental group, and so on) of the given triangulation also.
-         * If you want a "clean" copy that resets all properties to unknown,
-         * you can use the two-argument copy constructor instead.
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, the same numbering and
+         * labelling will be used for all skeletal objects.
          *
-         * \param copy the triangulation to copy.
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
+         * If you want a "clean" copy that resets all properties to unknown
+         * and leaves the skeleton uncomputed, you can use the two-argument
+         * copy constructor instead.
+         *
+         * \param src the triangulation to copy.
          */
-        Triangulation(const Triangulation& copy) = default;
+        Triangulation(const Triangulation& src) = default;
         /**
          * Creates a new copy of the given triangulation, with the option
          * of whether or not to clone its computed properties also.
          *
-         * \param copy the triangulation to copy.
+         * If \a cloneProps is \c true, then this constructor will also clone
+         * any computed properties (such as homology, fundamental group, and
+         * so on), as well as the skeleton (vertices, edges, components, etc.).
+         * In particular, the same numbering and labelling will be used for
+         * all skeletal objects in both triangulations.
+         *
+         * If \a cloneProps is \c false, then these properties and skeletal
+         * objects will be marked as unknown in the new triangulation, and
+         * will be recomputed on demand if/when they are required.  Note
+         * in particular that, when the skeleton is recomputed, there is
+         * no guarantee that the numbering and labelling for skeletal objects
+         * will be the same as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will be copied across _only_ if \a cloneProps
+         * is \c true.  If \a cloneProps is \c false then the new triangulation
+         * will have no locks at all.
+         *
+         * \param src the triangulation to copy.
          * \param cloneProps \c true if this should also clone any computed
-         * properties of the given triangulation (such as homology,
-         * fundamental group, and so on), or \c false if the new triangulation
-         * should have all properties marked as unknown.
+         * properties as well as the skeleton of the given triangulation,
+         * or \c false if the new triangulation should have such properties
+         * and skeletal data marked as unknown.
          */
-        Triangulation(const Triangulation& copy, bool cloneProps);
+        Triangulation(const Triangulation& src, bool cloneProps);
         /**
          * Moves the given triangulation into this new triangulation.
          *
@@ -125,6 +151,9 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
          * Triangle<2>, Face<2, subdim>, Component<2> or
          * BoundaryComponent<2> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
          *
          * The triangulation that is passed (\a src) will no longer be usable.
          *
@@ -217,6 +246,15 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
         /**
          * Sets this to be a (deep) copy of the given triangulation.
          *
+         * This will also clone any computed properties (such as homology,
+         * fundamental group, and so on), as well as the skeleton (vertices,
+         * edges, components, etc.).  In particular, this triangulation
+         * will use the same numbering and labelling for all skeletal objects
+         * as in the source triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be copied across.
+         *
          * \return a reference to this triangulation.
          */
         Triangulation& operator = (const Triangulation&) = default;
@@ -235,6 +273,9 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
          * Triangle<2>, Face<2, subdim>, Component<2> or
          * BoundaryComponent<2> objects will remain valid.  Likewise, all
          * cached properties will be moved into this triangulation.
+         *
+         * If \a src has any locks on top-dimensional simplices and/or their
+         * facets, these locks will also be moved across.
          *
          * The triangulation that is passed (\a src) will no longer be usable.
          *
@@ -356,6 +397,26 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
          */
         bool isMinimal() const;
 
+        /**
+         * Determines whether this is a triangulation of a 2-sphere.
+         *
+         * Unlike the 3-dimensional version of this routine, isSphere()
+         * for 2-manifolds is fast and simple.
+         *
+         * \return \c true if and only if this is a 2-sphere triangulation.
+         */
+        bool isSphere() const;
+
+        /**
+         * Determines whether this is a triangulation of a 2-ball.
+         *
+         * Unlike the 3-dimensional version of this routine, isBall()
+         * for 2-manifolds is fast and simple.
+         *
+         * \return \c true if and only if this is a 2-ball triangulation.
+         */
+        bool isBall() const;
+
         /*@}*/
 
     private:
@@ -366,10 +427,15 @@ class Triangulation<2> : public detail::TriangulationBase<2> {
          *
          * In most cases this routine is followed immediately by firing
          * a change event.
+         *
+         * It is recommended that you use a local ChangeAndClearSpan object
+         * to manage both of these tasks (calling clearAllProperties() and
+         * firing change events), rather than calling this function manually.
          */
         void clearAllProperties();
 
         void calculateSkeleton();
+        void cloneSkeleton(const Triangulation& src);
 
     friend class regina::Face<2, 2>;
     friend class regina::detail::SimplexBase<2>;
@@ -391,9 +457,9 @@ namespace regina {
 
 // Inline functions for Triangulation<2>
 
-inline Triangulation<2>::Triangulation(const Triangulation& cloneMe,
+inline Triangulation<2>::Triangulation(const Triangulation& src,
         bool cloneProps) :
-        TriangulationBase<2>(cloneMe, cloneProps) {
+        TriangulationBase<2>(src, cloneProps) {
     // No properties yet to clone.
 }
 
@@ -455,6 +521,14 @@ inline bool Triangulation<2>::isClosed() const {
 
 inline bool Triangulation<2>::isIdeal() const {
     return false;
+}
+
+inline bool Triangulation<2>::isSphere() const {
+    return (eulerChar() == 2 && components_.size() == 1);
+}
+
+inline bool Triangulation<2>::isBall() const {
+    return (eulerChar() == 1 && isOrientable() && components_.size() == 1);
 }
 
 } // namespace regina
