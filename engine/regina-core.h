@@ -39,6 +39,8 @@
 #define __REGINA_CORE_H
 #endif
 
+#include <cstdint> // Needed for gcc 13
+
 #include "regina-config.h" // for REGINA_HIGHDIM
 
 namespace regina {
